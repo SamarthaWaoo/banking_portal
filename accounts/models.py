@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 class Account(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE) # <-- Fixed!
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     pin = models.CharField(max_length=128) # Hashed PIN recommended
     failed_pin_attempts = models.IntegerField(default=0)
