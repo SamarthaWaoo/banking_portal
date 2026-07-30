@@ -141,6 +141,12 @@ banksuite/
 
 ```bash
 python manage.py test
+
 ```
+
+## 🚀 Quick Demo Access
+You can log into the live deployment instantly using the pre-seeded demo account:
+* **Email:** `demo@spendsmart.com`
+* **Password:** `DemoPassword123!`
 
 Covers: EMI calculation accuracy, DTI computation, approval/rejection logic, amortization schedule correctness, atomic money transfer, insufficient-balance handling, wrong-PIN blocking, and daily-limit enforcement.
