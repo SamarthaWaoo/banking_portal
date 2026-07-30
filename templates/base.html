@@ -1,0 +1,80 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SpendSmart Bank{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg vb-navbar sticky-top">
+  <div class="container">
+    <a class="navbar-brand vb-brand" href="{% url 'landing' %}">
+      <i class="bi bi-bank"></i> Spend<span>Smart</span>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navMain">
+      <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
+        {% if user.is_authenticated %}
+          <li class="nav-item"><a class="nav-link" href="{% url 'upi:dashboard' %}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'upi:send_money' %}"><i class="bi bi-send"></i> Send Money</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'upi:transactions' %}"><i class="bi bi-clock-history"></i> Transactions</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'loans:apply' %}"><i class="bi bi-cash-coin"></i> Apply Loan</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'loans:my_loans' %}"><i class="bi bi-file-earmark-text"></i> My Loans</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'accounts:profile' %}"><i class="bi bi-person-circle"></i> {{ user.first_name|default:user.username }}</a></li>
+          <li class="nav-item">
+            <form action="{% url 'accounts:logout' %}" method="post" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" class="btn vb-btn-outline btn-sm ms-lg-2">Logout</button>
+            </form>
+          </li>
+        {% else %}
+          <li class="nav-item"><a class="nav-link" href="{% url 'accounts:login' %}">Login</a></li>
+          <li class="nav-item"><a class="btn vb-btn-primary btn-sm ms-lg-2" href="{% url 'accounts:register' %}">Open Account</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+{% if messages %}
+<div class="container mt-3">
+  {% for message in messages %}
+    <div class="alert vb-alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="vb-footer">
+  <div class="container py-4">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="vb-brand mb-2"><i class="bi bi-bank"></i> Spend<span>Smart</span></div>
+        <p class="text-muted small mb-0">A simulated digital banking platform built for demonstration purposes. No real money, KYC, or banking services are involved.</p>
+      </div>
+      <div class="col-md-6 text-md-end small text-muted mt-3 mt-md-0">
+        &copy; {% now "Y" %} SpendSmart Bank Demo Project.
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Loan {{ loan.application_id }}{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="vb-card p-4 p-lg-5 mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h5 class="vb-section-title mb-1">{{ loan.get_loan_type_display }} — {{ loan.application_id }}</h5>
+        <div class="text-muted small">Applied on {{ loan.applied_at|date:"d M Y, H:i" }}</div>
+      </div>
+      <span class="vb-badge badge-status-{{ loan.status }} fs-6">{{ loan.get_status_display }}</span>
+    </div>
+
+    <div class="row g-3 mt-3">
+      <div class="col-6 col-md-3">
+        <div class="text-muted small">Loan Amount</div>
+        <div class="fw-bold">₹{{ loan.loan_amount }}</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="text-muted small">Interest Rate</div>
+        <div class="fw-bold">{{ loan.interest_rate }}% p.a.</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="text-muted small">Tenure</div>
+        <div class="fw-bold">{{ loan.tenure_months }} months</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="text-muted small">Monthly EMI</div>
+        <div class="fw-bold">₹{{ loan.emi_amount }}</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="text-muted small">DTI Ratio</div>
+        <div class="fw-bold">{{ loan.dti_ratio }}%</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="text-muted small">Credit Score</div>
+        <div class="fw-bold">{{ loan.credit_score }}</div>
+      </div>
+      {% if schedule %}
+      <div class="col-6 col-md-3">
+        <div class="text-muted small">Total Interest Payable</div>
+        <div class="fw-bold">₹{{ total_interest }}</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="alert {% if loan.status == 'APPROVED' %}vb-alert-success{% else %}vb-alert-error{% endif %} mt-4 mb-0">
+      <strong>Decision reason:</strong> {{ loan.decision_reason }}
+    </div>
+  </div>
+
+  {% if schedule %}
+  <div class="vb-card p-4">
+    <h6 class="mb-3"><i class="bi bi-table"></i> Amortization Schedule</h6>
+    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+      <table class="table table-vb table-sm mb-0">
+        <thead style="position: sticky; top: 0;">
+          <tr><th>Month</th><th>EMI (₹)</th><th>Principal (₹)</th><th>Interest (₹)</th><th>Balance (₹)</th></tr>
+        </thead>
+        <tbody>
+          {% for row in schedule %}
+          <tr>
+            <td>{{ row.month }}</td>
+            <td>{{ row.emi }}</td>
+            <td>{{ row.principal }}</td>
+            <td>{{ row.interest }}</td>
+            <td>{{ row.balance }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

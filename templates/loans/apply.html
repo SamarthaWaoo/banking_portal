@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Apply for a Loan{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="vb-card p-4 p-lg-5">
+        <h4 class="vb-section-title mb-1"><i class="bi bi-cash-coin"></i> Loan Application</h4>
+        <p class="text-muted small mb-4">Get an instant eligibility decision based on your income, expenses, and credit score.</p>
+
+        <form method="post">
+          {% csrf_token %}
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label>Loan Type</label>
+              {{ form.loan_type }}
+            </div>
+            <div class="col-md-6">
+              <label>Credit Score (300–900)</label>
+              {{ form.credit_score }}
+            </div>
+            <div class="col-md-6">
+              <label>Monthly Salary (₹)</label>
+              {{ form.monthly_salary }}
+            </div>
+            <div class="col-md-6">
+              <label>Monthly Expenses (₹)</label>
+              {{ form.monthly_expenses }}
+            </div>
+            <div class="col-md-6">
+              <label>Existing EMI (₹)</label>
+              {{ form.existing_emi }}
+            </div>
+            <div class="col-md-6">
+              <label>Loan Amount Required (₹)</label>
+              {{ form.loan_amount }}
+            </div>
+            <div class="col-md-6">
+              <label>Tenure (months)</label>
+              {{ form.tenure_months }}
+            </div>
+          </div>
+
+          {% if form.errors %}
+          <div class="alert vb-alert-error mt-3">
+            {% for field in form %}{% for error in field.errors %}<div>{{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
+          </div>
+          {% endif %}
+
+          <div class="alert vb-alert-warning mt-4 small">
+            <i class="bi bi-info-circle"></i> Approval rules: credit score ≥ 650, debt-to-income ratio ≤ 45%, and EMI ≤ 60% of disposable income.
+          </div>
+
+          <button type="submit" class="btn vb-btn-primary w-100 py-2 mt-2">Check Eligibility &amp; Apply</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

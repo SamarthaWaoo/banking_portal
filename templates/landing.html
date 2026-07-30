@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}SpendSmart Bank — Banking Made Simple{% endblock %}
+{% block content %}
+
+<section class="vb-hero">
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col-lg-7">
+        <div class="vb-eyebrow mb-2">Digital Banking Simulation</div>
+        <h1>Banking that moves as fast as your life.</h1>
+        <p class="lead mt-3">Send money instantly, apply for loans in minutes, and manage everything from one secure dashboard — SpendSmart Bank brings payments and lending together.</p>
+        <div class="mt-4 d-flex gap-3">
+          {% if user.is_authenticated %}
+            <a href="{% url 'upi:dashboard' %}" class="btn vb-btn-primary btn-lg px-4">Go to Dashboard</a>
+          {% else %}
+            <a href="{% url 'accounts:register' %}" class="btn vb-btn-primary btn-lg px-4">Open Free Account</a>
+            <a href="{% url 'accounts:login' %}" class="btn vb-btn-outline btn-lg px-4">Login</a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col-lg-5 d-none d-lg-block text-center">
+  <i class="bi 	bi-safe2-fill" style="font-size: 10rem; color: rgba(201, 163, 39, 0.941);"></i>
+</div>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+  <div class="vb-stat-strip px-4 py-4">
+    <div class="row text-center g-3">
+      <div class="col-6 col-md-3">
+        <div class="stat-num">₹500Cr+</div>
+        <div class="stat-label">Simulated Transactions</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-num">2 Min</div>
+        <div class="stat-label">Loan Decision Time</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-num">256-bit</div>
+        <div class="stat-label">Encrypted Sessions</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-num">24x7</div>
+        <div class="stat-label">Account Access</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="container py-5 mt-4">
+  <div class="text-center mb-5">
+    <div class="vb-eyebrow">What we offer</div>
+    <h2 class="vb-section-title">Everything in one place</h2>
+  </div>
+  <div class="row g-4">
+    <div class="col-md-4">
+      <div class="vb-card p-4 h-100">
+        <div class="vb-feature-icon mb-3"><i class="bi bi-send-check"></i></div>
+        <h5>Instant UPI Transfers</h5>
+        <p class="text-muted small mb-0">Send and receive money instantly between linked accounts with PIN-secured, atomic transactions and real-time balance updates.</p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="vb-card p-4 h-100">
+        <div class="vb-feature-icon mb-3"><i class="bi bi-cash-coin"></i></div>
+        <h5>Smart Loan Eligibility</h5>
+        <p class="text-muted small mb-0">Apply for personal, home, car, or education loans. Get an instant decision based on your credit score, income, and debt-to-income ratio.</p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="vb-card p-4 h-100">
+        <div class="vb-feature-icon mb-3"><i class="bi bi-file-earmark-bar-graph"></i></div>
+        <h5>Statements &amp; Insights</h5>
+        <p class="text-muted small mb-0">Download PDF statements, track your EMI amortization schedule, and view your full transaction history anytime.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container py-5">
+  <div class="vb-card p-5 text-center" style="background: linear-gradient(135deg, var(--vb-navy) 0%, var(--vb-navy-light) 100%); color: #fff;">
+    <h3 class="mb-2">Ready to experience modern banking?</h3>
+    <p class="text-white-50 mb-4">Open a simulated account in under a minute. No real money or documents required.</p>
+    {% if not user.is_authenticated %}
+    <a href="{% url 'accounts:register' %}" class="btn vb-btn-primary btn-lg px-5">Get Started</a>
+    {% endif %}
+  </div>
+</section>
+
+<div class="container mb-4">
+  <p class="text-center text-muted small">
+    <i class="bi bi-info-circle"></i> This is a demonstration project. All accounts, KYC (PAN/Aadhaar format checks), and transactions are simulated — no real banking services are involved.
+  </p>
+</div>
+
+{% endblock %}
