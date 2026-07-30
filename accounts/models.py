@@ -5,6 +5,7 @@ from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.conf import settings
 
 class Account(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE) # <-- Fixed!
