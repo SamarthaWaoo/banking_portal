@@ -7,6 +7,12 @@ Built as a portfolio project to demonstrate backend, database, and business-logi
 > ⚠️ **This is a simulation.** No real money, banks, or KYC providers are involved. PAN/Aadhaar fields are validated by format (regex) only.
 
 ---
+🌐 Live Demo
+Live Application:https://banking-portal-2l0j.onrender.com
+
+Hosting Platform: Render (Free Tier)
+
+----
 
 ## Features
 
