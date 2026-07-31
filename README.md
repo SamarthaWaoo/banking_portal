@@ -15,6 +15,37 @@ Hosting Platform: Render (Free Tier)
 
 ----
 
+## 📸 Screenshots
+
+### Landing Page
+![Landing Page](screenshots/01-landing-page.png)
+
+### Login
+![Login](screenshots/02-login.png)
+
+### Create Account (Simulated KYC)
+![Create Account](screenshots/03-create-account.png)
+
+### Set Transaction PIN
+![Set Transaction PIN](screenshots/04-set-transaction-pin.png)
+
+### Dashboard
+![Dashboard](screenshots/05-dashboard.png)
+
+### Send Money (UPI Transfer)
+![Send Money](screenshots/06-send-money.png)
+
+### Loan Application & Eligibility Check
+![Loan Application](screenshots/07-loan-application.png)
+
+### My Loan Applications
+![My Loan Applications](screenshots/08-my-loan-applications.png)
+
+### Transaction History
+![Transaction History](screenshots/09-transaction-history.png)
+
+---
+
 ## Features
 
 ### 💳 UPI Payments Module
