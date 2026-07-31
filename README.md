@@ -8,7 +8,8 @@ Built as a portfolio project to demonstrate backend, database, and business-logi
 
 ---
 🌐 Live Demo
-Live Application:https://banking-portal-2l0j.onrender.com
+
+Live Application: https://banking-portal-2l0j.onrender.com
 
 Hosting Platform: Render (Free Tier)
 
