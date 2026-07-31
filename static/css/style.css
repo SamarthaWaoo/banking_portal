@@ -9,10 +9,22 @@
   --vb-danger: #c0392b;
 }
 
+html, body {
+  height: 100%;
+}
+
 body {
   font-family: 'Inter', sans-serif;
   background-color: var(--vb-bg);
   color: #1c2b3a;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin: 0;
+}
+
+main {
+  flex: 1 0 auto;
 }
 
 h1, h2, h3, h4, h5 {
@@ -175,6 +187,7 @@ label { font-weight: 500; font-size: 0.9rem; color: #445266; }
   background: var(--vb-navy-dark);
   color: rgba(255,255,255,0.7);
   margin-top: 4rem;
+  flex-shrink: 0;
 }
 .vb-footer .vb-brand { font-size: 1.15rem; }
 .vb-footer p.text-muted,
