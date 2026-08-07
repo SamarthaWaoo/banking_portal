@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.utils import timezone
 
 LOAN_TYPES = (
     ('PERSONAL', 'Personal Loan'),
@@ -16,6 +17,9 @@ STATUS_CHOICES = (
     ('PENDING', 'Under Review'),
     ('APPROVED', 'Approved'),
     ('REJECTED', 'Rejected'),
+    ('DISBURSED', 'Disbursed'),   # NEW
+    ('CLOSED', 'Closed'),         # NEW
+    ('DEFAULTED', 'Defaulted'),   # NEW
 )
 
 # Simple base interest rates by loan type (annual %)
@@ -41,11 +45,18 @@ class LoanApplication(models.Model):
 
     dti_ratio = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     emi_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING')
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default='PENDING')
     decision_reason = models.CharField(max_length=255, blank=True)
 
     applied_at = models.DateTimeField(auto_now_add=True)
     decided_at = models.DateTimeField(null=True, blank=True)
+
+    # NEW fields
+    disbursed_at = models.DateTimeField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    defaulted_at = models.DateTimeField(null=True, blank=True)
+    outstanding_balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    repayments_made = models.IntegerField(default=0)
 
     class Meta:
         ordering = ['-applied_at']
@@ -77,19 +88,19 @@ class LoanApplication(models.Model):
 
     def evaluate(self):
         """
-        Rule-based approval engine (deliberately simple & documented):
-        - Credit score must be >= 650
-        - DTI ratio (including new EMI) must be <= 45%
-        - Requested EMI must not exceed 60% of (salary - expenses)
+        Rule-based approval engine:
+        - Credit score >= 650
+        - DTI ratio <= 45%
+        - EMI <= 60% of disposable income
         """
         self.emi_amount = Decimal(str(self.calculate_emi()))
         self.dti_ratio = Decimal(str(self.calculate_dti()))
 
         reasons = []
         if self.credit_score < 650:
-            reasons.append(f"Credit score {self.credit_score} is below the minimum requirement of 650")
+            reasons.append(f"Credit score {self.credit_score} is below 650")
         if self.dti_ratio > 45:
-            reasons.append(f"Debt-to-income ratio {self.dti_ratio}% exceeds the 45% threshold")
+            reasons.append(f"Debt-to-income ratio {self.dti_ratio}% exceeds 45%")
 
         disposable = float(self.monthly_salary) - float(self.monthly_expenses)
         if disposable > 0 and float(self.emi_amount) > 0.6 * disposable:
@@ -102,11 +113,33 @@ class LoanApplication(models.Model):
             self.decision_reason = "; ".join(reasons)
         else:
             self.status = 'APPROVED'
-            self.decision_reason = "Meets all eligibility criteria: credit score, DTI ratio, and EMI affordability"
+            self.decision_reason = "Meets all eligibility criteria"
 
-        from django.utils import timezone
         self.decided_at = timezone.now()
         return self.status
+
+    def disburse(self):
+        """Mark loan as disbursed and set outstanding balance."""
+        self.status = 'DISBURSED'
+        self.disbursed_at = timezone.now()
+        self.outstanding_balance = self.loan_amount
+        self.save()
+
+    def make_repayment(self, amount):
+        """Reduce outstanding balance when EMI is paid."""
+        if self.status == 'DISBURSED' and self.outstanding_balance > 0:
+            self.outstanding_balance -= Decimal(amount)
+            self.repayments_made += 1
+            if self.outstanding_balance <= 0:
+                self.status = 'CLOSED'
+                self.closed_at = timezone.now()
+            self.save()
+
+    def mark_default(self):
+        """Mark loan as defaulted."""
+        self.status = 'DEFAULTED'
+        self.defaulted_at = timezone.now()
+        self.save()
 
     def amortization_schedule(self):
         """Returns list of dicts: month, principal_paid, interest_paid, balance"""

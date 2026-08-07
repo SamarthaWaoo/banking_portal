@@ -9,12 +9,15 @@
     </a>
   </div>
 
+  <!-- Status Filters -->
   <div class="mb-3 d-flex gap-2 flex-wrap">
     <a href="?" class="btn btn-sm {% if not request.GET.status %}vb-btn-primary{% else %}vb-btn-outline text-dark border{% endif %}">All</a>
     <a href="?status=SUCCESS" class="btn btn-sm {% if request.GET.status == 'SUCCESS' %}vb-btn-primary{% else %}vb-btn-outline text-dark border{% endif %}">Success</a>
     <a href="?status=FAILED" class="btn btn-sm {% if request.GET.status == 'FAILED' %}vb-btn-primary{% else %}vb-btn-outline text-dark border{% endif %}">Failed</a>
+    <a href="?status=FLAGGED" class="btn btn-sm {% if request.GET.status == 'FLAGGED' %}vb-btn-primary{% else %}vb-btn-outline text-dark border{% endif %}">Flagged</a>
   </div>
 
+  <!-- Transactions Table -->
   <div class="vb-card p-0 overflow-hidden">
     <table class="table table-vb mb-0">
       <thead>
@@ -24,7 +27,9 @@
           <th>Direction</th>
           <th>Amount</th>
           <th>Status</th>
+          <th>Balance After</th>
           <th>Note</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody>
@@ -40,11 +45,34 @@
             {% endif %}
           </td>
           <td class="fw-semibold small">₹{{ t.amount }}</td>
-          <td><span class="vb-badge badge-status-{{ t.status }}">{{ t.status }}</span></td>
-          <td class="small text-muted">{{ t.note|default:"—" }}{% if t.failure_reason %}<br><span class="text-danger">{{ t.failure_reason }}</span>{% endif %}</td>
+          <td>
+            <span class="vb-badge badge-status-{{ t.status }}">{{ t.status }}</span>
+            {% if t.is_flagged %}
+              <span class="badge bg-warning text-dark ms-1">Flagged</span>
+            {% endif %}
+          </td>
+          <td class="small">
+            {% if t.sender_account.user == user %}
+              ₹{{ t.sender_balance_after|default:"—" }}
+            {% else %}
+              ₹{{ t.receiver_balance_after|default:"—" }}
+            {% endif %}
+          </td>
+          <td class="small text-muted">
+            {{ t.note|default:"—" }}
+            {% if t.failure_reason %}
+              <br><span class="text-danger">{{ t.failure_reason }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if t.sender_account.user == user and t.receiver_account %}
+              <a href="{% url 'upi:send_money' %}?receiver={{ t.receiver_account.upi_id }}" 
+                 class="btn btn-sm vb-btn-outline">Send Again</a>
+            {% endif %}
+          </td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" class="text-center text-muted py-4">No transactions found.</td></tr>
+        <tr><td colspan="8" class="text-center text-muted py-4">No transactions found.</td></tr>
         {% endfor %}
       </tbody>
     </table>

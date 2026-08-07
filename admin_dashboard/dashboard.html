@@ -1,0 +1,179 @@
+Here’s the **whole corrected `admin_dashboard/dashboard.html` file** with *all* the enhancements baked in — summary cards, tabs, full tables, failed transaction resolution, audit logs, and charts for visualization:
+
+```html
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — SpendSmart Bank{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h4 class="vb-section-title mb-4"><i class="bi bi-shield-lock"></i> Admin Dashboard</h4>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="vb-card p-3 text-center">
+        <h6 class="text-muted small">Total Users</h6>
+        <div class="fw-bold fs-5">{{ users|length }}</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="vb-card p-3 text-center">
+        <h6 class="text-muted small">Total Accounts</h6>
+        <div class="fw-bold fs-5">{{ accounts|length }}</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="vb-card p-3 text-center">
+        <h6 class="text-muted small">Total Loans</h6>
+        <div class="fw-bold fs-5">{{ loans|length }}</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="vb-card p-3 text-center">
+        <h6 class="text-muted small">Flagged Txns</h6>
+        <div class="fw-bold fs-5">
+          {{ transactions|dictsort:"is_flagged"|length }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs" id="adminTabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button">Users</button></li>
+    <li class="nav-item"><button class="nav-link" id="accounts-tab" data-bs-toggle="tab" data-bs-target="#accounts" type="button">Accounts</button></li>
+    <li class="nav-item"><button class="nav-link" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions" type="button">Transactions</button></li>
+    <li class="nav-item"><button class="nav-link" id="loans-tab" data-bs-toggle="tab" data-bs-target="#loans" type="button">Loans</button></li>
+    <li class="nav-item"><button class="nav-link" id="audit-tab" data-bs-toggle="tab" data-bs-target="#audit" type="button">Audit Logs</button></li>
+    <li class="nav-item"><button class="nav-link" id="charts-tab" data-bs-toggle="tab" data-bs-target="#charts" type="button">Charts</button></li>
+  </ul>
+
+  <!-- Tab Content -->
+  <div class="tab-content mt-3">
+    <!-- Users -->
+    <div class="tab-pane fade show active" id="users" role="tabpanel">
+      <div class="vb-card p-4">
+        <h6 class="mb-3">Users</h6>
+        <table class="table table-vb mb-0">
+          <thead><tr><th>Username</th><th>Customer ID</th><th>Email</th><th>Admin?</th></tr></thead>
+          <tbody>
+            {% for u in users %}
+            <tr>
+              <td>{{ u.username }}</td>
+              <td>{{ u.customer_id }}</td>
+              <td>{{ u.email }}</td>
+              <td>{% if u.is_admin %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+            </tr>
+            {% empty %}<tr><td colspan="4" class="text-center text-muted">No users found.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Accounts -->
+    <div class="tab-pane fade" id="accounts" role="tabpanel">
+      <div class="vb-card p-4">
+        <h6 class="mb-3">Accounts</h6>
+        <table class="table table-vb mb-0">
+          <thead><tr><th>Account #</th><th>User</th><th>Balance</th><th>Blocked Balance</th></tr></thead>
+          <tbody>
+            {% for acc in accounts %}
+            <tr>
+              <td>{{ acc.account_number }}</td>
+              <td>{{ acc.user.username }}</td>
+              <td>₹{{ acc.balance }}</td>
+              <td>₹{{ acc.blocked_balance }}</td>
+            </tr>
+            {% empty %}<tr><td colspan="4" class="text-center text-muted">No accounts found.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Transactions -->
+    <div class="tab-pane fade" id="transactions" role="tabpanel">
+      <div class="vb-card p-4">
+        <h6 class="mb-3">Recent Transactions</h6>
+        <table class="table table-vb mb-0">
+          <thead><tr><th>Date</th><th>Reference ID</th><th>Sender</th><th>Receiver</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody>
+            {% for t in transactions %}
+            <tr>
+              <td class="small">{{ t.timestamp|date:"d M Y, H:i" }}</td>
+              <td>{{ t.reference_id }}</td>
+              <td>{{ t.sender_account.user.username }}</td>
+              <td>{{ t.receiver_account.user.username }}</td>
+              <td>₹{{ t.amount }}</td>
+              <td>
+                <span class="vb-badge badge-status-{{ t.status }}">{{ t.status }}</span>
+                {% if t.is_flagged %}<span class="badge bg-warning text-dark ms-1">Flagged</span>{% endif %}
+              </td>
+              <td>
+                {% if t.status == "Failed" %}
+                  <form method="post" action="{% url 'admin_dashboard:resolve_transaction' t.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-success">Resolve</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}<tr><td colspan="7" class="text-center text-muted">No transactions found.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Loans -->
+    <div class="tab-pane fade" id="loans" role="tabpanel">
+      <div class="vb-card p-4">
+        <h6 class="mb-3">Loans</h6>
+        <table class="table table-vb mb-0">
+          <thead><tr><th>Application ID</th><th>User</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for loan in loans %}
+            <tr>
+              <td>{{ loan.application_id }}</td>
+              <td>{{ loan.user.username }}</td>
+              <td>{{ loan.get_loan_type_display }}</td>
+              <td>₹{{ loan.loan_amount }}</td>
+              <td>{{ loan.status }}</td>
+            </tr>
+            {% empty %}<tr><td colspan="5" class="text-center text-muted">No loans found.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Audit Logs -->
+    <div class="tab-pane fade" id="audit" role="tabpanel">
+      <div class="vb-card p-4">
+        <h6 class="mb-3">Audit Logs</h6>
+        <table class="table table-vb mb-0">
+          <thead><tr><th>Action</th><th>Admin</th><th>Timestamp</th></tr></thead>
+          <tbody>
+            {% for log in audit_logs %}
+            <tr>
+              <td>{{ log.action }}</td>
+              <td>{{ log.admin.username }}</td>
+              <td>{{ log.timestamp|date:"d M Y, H:i" }}</td>
+            </tr>
+            {% empty %}<tr><td colspan="3" class="text-center text-muted">No audit logs found.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="tab-pane fade" id="charts" role="tabpanel">
+      <div class="vb-card p-4">
+        <h6 class="mb-3">Analytics</h6>
+        <canvas id="loanChart" height="120"></canvas>
+        <canvas id="txnChart" height="120" class="mt-4"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Loan Status Chart
+  const loanCtx = document

@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator
-
+from django.utils import timezone
 
 ACCOUNT_TYPES = (
     ('SAVINGS', 'Savings Account'),
@@ -21,6 +21,7 @@ TRANSACTION_STATUS = (
     ('SUCCESS', 'Success'),
     ('FAILED', 'Failed'),
     ('PENDING', 'Pending'),
+    ('FLAGGED', 'Flagged'),   # NEW: suspicious/fraud flagged
 )
 
 
@@ -32,6 +33,7 @@ class BankAccount(models.Model):
     upi_id = models.CharField(max_length=50, unique=True, blank=True)
     balance = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('10000.00'),
                                    validators=[MinValueValidator(Decimal('0.00'))])
+    blocked_balance = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))  # NEW
     daily_transfer_limit = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('100000.00'))
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -50,7 +52,6 @@ class BankAccount(models.Model):
                 return num
 
     def amount_transferred_today(self):
-        from django.utils import timezone
         today = timezone.now().date()
         total = self.sent_transactions.filter(
             timestamp__date=today, status='SUCCESS'
@@ -80,6 +81,10 @@ class Transaction(models.Model):
     receiver_balance_after = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
+    # NEW fields
+    is_flagged = models.BooleanField(default=False)  # suspicious/fraud detection
+    resolved = models.BooleanField(default=False)   # admin resolution status
+
     def save(self, *args, **kwargs):
         if not self.reference_id:
             self.reference_id = "TXN" + uuid.uuid4().hex[:12].upper()
@@ -90,3 +95,17 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.reference_id} - {self.amount} - {self.status}"
+
+
+# NEW: Recent Contacts
+class RecentContact(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    contact_account = models.ForeignKey(BankAccount, on_delete=models.CASCADE)
+    last_used = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-last_used']
+        unique_together = ('user', 'contact_account')
+
+    def __str__(self):
+        return f"{self.user.username} → {self.contact_account.upi_id}"

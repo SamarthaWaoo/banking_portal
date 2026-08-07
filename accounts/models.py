@@ -3,22 +3,45 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
-from django.contrib.auth.models import User
 from django.utils import timezone
 from django.conf import settings
 
+# -----------------------------
+# Account Model (Bank Account)
+# -----------------------------
 class Account(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE) # <-- Fixed!
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    pin = models.CharField(max_length=128) # Hashed PIN recommended
+    blocked_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)  # NEW
+    pin = models.CharField(max_length=128)  # Hashed PIN recommended
     failed_pin_attempts = models.IntegerField(default=0)
     lockout_until = models.DateTimeField(null=True, blank=True)
 
-    def is_locked(self):
-        if self.lockout_until and timezone.now() < self.lockout_until:
-            return True
-        return False
+    def save(self, *args, **kwargs):
+        # Randomize starting balance only on first creation
+        if not self.pk and self.balance == 0:
+            self.balance = random.randint(5000, 50000)
+        super().save(*args, **kwargs)
 
+    def is_locked(self):
+        return bool(self.lockout_until and timezone.now() < self.lockout_until)
+
+    def adjust_balance(self, amount):
+        """Admin or system can credit/debit balance"""
+        self.balance += amount
+        self.save()
+
+    def credit_interest(self, amount=50):
+        """Simulate monthly interest credit"""
+        self.balance += amount
+        self.save()
+
+    def __str__(self):
+        return f"{self.user.username} - Balance: {self.balance} (Blocked: {self.blocked_balance})"
+
+# -----------------------------
+# Validators
+# -----------------------------
 pan_validator = RegexValidator(
     regex=r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$',
     message="Enter a valid PAN number (format: ABCDE1234F)"
@@ -34,13 +57,10 @@ phone_validator = RegexValidator(
     message="Enter a valid 10-digit mobile number"
 )
 
-
+# -----------------------------
+# Custom User Model
+# -----------------------------
 class CustomUser(AbstractUser):
-    """
-    Extended user model for BankSuite.
-    Note: PAN/Aadhaar here are FORMAT-VALIDATED ONLY (regex), not verified
-    against any government API. This is a simulated KYC flow for demo purposes.
-    """
     pan_number = models.CharField(
         max_length=10, unique=True, validators=[pan_validator],
         help_text="Format: ABCDE1234F"
@@ -57,9 +77,15 @@ class CustomUser(AbstractUser):
     is_kyc_verified = models.BooleanField(default=True)  # auto-true in simulation
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # NEW FIELDS
+    is_admin = models.BooleanField(default=False)  # Role-based access
+    avatar = models.CharField(max_length=255, blank=True, null=True)  # Random avatar path
+
     def save(self, *args, **kwargs):
         if not self.customer_id:
             self.customer_id = self._generate_customer_id()
+        if not self.avatar:
+            self.avatar = self._assign_random_avatar()
         super().save(*args, **kwargs)
 
     def _generate_customer_id(self):
@@ -67,6 +93,11 @@ class CustomUser(AbstractUser):
             cid = "VB" + "".join([str(random.randint(0, 9)) for _ in range(8)])
             if not CustomUser.objects.filter(customer_id=cid).exists():
                 return cid
+
+    def _assign_random_avatar(self):
+        styles = ["bottts", "avataaars", "micah", "identicon"]
+        style = random.choice(styles)
+        return f"https://api.dicebear.com/6.x/{style}/png?seed={self.username}"
 
     def set_transaction_pin(self, raw_pin):
         self.pin_hash = make_password(raw_pin)

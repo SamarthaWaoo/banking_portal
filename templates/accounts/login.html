@@ -17,18 +17,55 @@
             <label>Username</label>
             <input type="text" name="username" class="form-control" required autofocus>
           </div>
-          <div class="mb-3">
+          <div class="mb-3 position-relative">
             <label>Password</label>
-            <input type="password" name="password" class="form-control" required>
+            <div class="input-group">
+              <input type="password" name="password" id="passwordField" class="form-control" required>
+              <button type="button" class="btn btn-outline-secondary" id="togglePassword">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
           </div>
           {% if form.errors %}
           <div class="alert vb-alert-error">Invalid username or password.</div>
           {% endif %}
           <button type="submit" class="btn vb-btn-primary w-100 py-2 mt-2">Login</button>
         </form>
-        <p class="text-center small text-muted mt-3">New to SpendSmart Bank? <a href="{% url 'accounts:register' %}">Open an account</a></p>
+
+        <!-- Forgot Password -->
+        <p class="text-center small mt-3">
+          <a href="{% url 'accounts:forgot_password' %}">Forgot your password?</a>
+        </p>
+
+        <p class="text-center small text-muted mt-3">
+          New to SpendSmart Bank? <a href="{% url 'accounts:register' %}">Open an account</a>
+        </p>
+
+        <!-- Session/Login Alert -->
+        {% if login_alert %}
+        <div class="alert alert-info mt-3 small">
+          {{ login_alert }}
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
 </div>
+
+<script>
+  // Toggle password visibility
+  document.getElementById("togglePassword").addEventListener("click", function () {
+    const passwordField = document.getElementById("passwordField");
+    const icon = this.querySelector("i");
+    if (passwordField.type === "password") {
+      passwordField.type = "text";
+      icon.classList.remove("bi-eye");
+      icon.classList.add("bi-eye-slash");
+    } else {
+      passwordField.type = "password";
+      icon.classList.remove("bi-eye-slash");
+      icon.classList.add("bi-eye");
+    }
+  });
+</script>
 {% endblock %}

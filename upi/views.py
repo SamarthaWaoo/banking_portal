@@ -1,15 +1,28 @@
 from decimal import Decimal
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction as db_transaction
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
+from django.utils import timezone
 
-from .models import BankAccount, Transaction
+from .models import BankAccount, Transaction, RecentContact
+from accounts.models import CustomUser
+
+# -----------------------------
+# Search Users (AJAX)
+# -----------------------------
+def search_users(request):
+    query = request.GET.get('q', '')
+    users = CustomUser.objects.filter(username__icontains=query)[:5]
+    results = [{'username': u.username, 'upi_id': u.customer_id} for u in users]
+    return JsonResponse(results, safe=False)
 
 
+# -----------------------------
+# Dashboard
+# -----------------------------
 @login_required
 def dashboard_view(request):
     accounts = request.user.accounts.filter(is_active=True)
@@ -24,6 +37,9 @@ def dashboard_view(request):
     })
 
 
+# -----------------------------
+# Send Money
+# -----------------------------
 @login_required
 def send_money_view(request):
     my_accounts = request.user.accounts.filter(is_active=True)
@@ -34,7 +50,7 @@ def send_money_view(request):
 
     if request.method == 'POST':
         sender_account_id = request.POST.get('sender_account')
-        receiver_upi_id = request.POST.get('receiver_upi_id', '').strip()
+        receiver_upi_id = request.POST.get('receiver_upi', '').strip()
         amount_raw = request.POST.get('amount', '0')
         note = request.POST.get('note', '')[:140]
         pin = request.POST.get('pin', '')
@@ -47,13 +63,20 @@ def send_money_view(request):
 
         sender_account = my_accounts.filter(id=sender_account_id).first()
 
-        # ---- Validation chain (each failure recorded, none silently ignored) ----
+        # ---- Validation chain ----
         error = None
         if not sender_account:
             error = "Invalid sender account."
         elif amount <= 0:
             error = "Amount must be greater than zero."
+        elif sender_account.user.is_locked():  # NEW: lockout check
+            error = "Your account is temporarily locked due to failed PIN attempts."
         elif not request.user.check_transaction_pin(pin):
+            # Increment failed attempts
+            sender_account.failed_pin_attempts += 1
+            if sender_account.failed_pin_attempts >= 3:
+                sender_account.lockout_until = timezone.now() + timezone.timedelta(minutes=5)
+            sender_account.save()
             error = "Incorrect transaction PIN."
         elif sender_account.balance < amount:
             error = "Insufficient balance."
@@ -69,19 +92,18 @@ def send_money_view(request):
                 error = "You cannot send money to the same account."
 
         if error:
-            # Log a FAILED transaction for audit-trail completeness
             Transaction.objects.create(
                 sender_account=sender_account, receiver_account=receiver_account,
                 amount=amount if amount > 0 else Decimal('0.01'),
                 transaction_type='SEND', status='FAILED', note=note, failure_reason=error,
+                is_flagged=True if "PIN" in error else False  # NEW: flag suspicious
             )
             messages.error(request, error)
             return redirect('upi:send_money')
 
-        # ---- Atomic money movement: all-or-nothing ----
+        # ---- Atomic money movement ----
         try:
             with db_transaction.atomic():
-                # select_for_update prevents race conditions on concurrent transfers
                 sender_locked = BankAccount.objects.select_for_update().get(id=sender_account.id)
                 receiver_locked = BankAccount.objects.select_for_update().get(id=receiver_account.id)
 
@@ -93,12 +115,20 @@ def send_money_view(request):
                 sender_locked.save()
                 receiver_locked.save()
 
-                Transaction.objects.create(
+                txn = Transaction.objects.create(
                     sender_account=sender_locked, receiver_account=receiver_locked,
                     amount=amount, transaction_type='SEND', status='SUCCESS', note=note,
                     sender_balance_after=sender_locked.balance,
                     receiver_balance_after=receiver_locked.balance,
                 )
+
+                # Update Recent Contacts
+                RecentContact.objects.update_or_create(
+                    user=request.user,
+                    contact_account=receiver_locked,
+                    defaults={'last_used': timezone.now()}
+                )
+
             messages.success(request, f"₹{amount} sent successfully to {receiver_upi_id}.")
             return redirect('upi:dashboard')
         except Exception as e:
@@ -108,6 +138,9 @@ def send_money_view(request):
     return render(request, 'upi/send_money.html', {'accounts': my_accounts})
 
 
+# -----------------------------
+# Transaction History
+# -----------------------------
 @login_required
 def transaction_history_view(request):
     txns = Transaction.objects.filter(
@@ -121,11 +154,13 @@ def transaction_history_view(request):
     return render(request, 'upi/transactions.html', {'txns': txns})
 
 
+# -----------------------------
+# Download Statement PDF
+# -----------------------------
 @login_required
 def download_statement_pdf(request):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib import colors
-    from reportlab.lib.units import mm
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
     from reportlab.lib.styles import getSampleStyleSheet
 

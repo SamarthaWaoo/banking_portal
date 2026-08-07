@@ -1,41 +1,124 @@
 {% extends "base.html" %}
 {% block title %}Send Money — SpendSmart Bank{% endblock %}
 {% block content %}
-<div class="container py-5">
-  <div class="vb-card mx-auto p-4 p-lg-5" style="max-width: 560px;">
-    <h4 class="vb-section-title mb-1"><i class="bi bi-send"></i> Send Money</h4>
-    <p class="text-muted small mb-4">Instant transfer to any SpendSmart Bank UPI ID.</p>
+<div class="container py-4">
+  <h2 class="mb-4"><i class="bi bi-send"></i> Send Money</h2>
 
-    <form method="post">
-      {% csrf_token %}
-      <div class="mb-3">
-        <label>From Account</label>
-        <select name="sender_account" class="form-select" required>
-          {% for acc in accounts %}
-          <option value="{{ acc.id }}">{{ acc.get_account_type_display }} — {{ acc.account_number }} (₹{{ acc.balance }})</option>
-          {% endfor %}
-        </select>
+  <form method="post">
+    {% csrf_token %}
+
+    <!-- Sender Account -->
+    <div class="mb-3">
+      <label for="sender_account" class="form-label">Select Account</label>
+      <select name="sender_account" id="sender_account" class="form-select" required>
+        {% for acc in accounts %}
+          <option value="{{ acc.id }}">{{ acc.account_number }} (Balance: ₹{{ acc.balance }})</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Search Recipient -->
+    <div class="mb-3">
+      <label for="searchUser" class="form-label">Search Recipient</label>
+      <input type="text" id="searchUser" class="form-control" placeholder="Type username or UPI ID">
+      <div id="suggestions" class="list-group mt-1"></div>
+    </div>
+
+    <!-- Recent Contacts -->
+    {% if recent_contacts %}
+    <div class="mb-3">
+      <label class="form-label">Recent Contacts</label>
+      <div class="d-flex flex-wrap gap-2">
+        {% for rc in recent_contacts %}
+        <button type="button" class="btn btn-outline-secondary btn-sm"
+                onclick="selectUser('{{ rc.upi_id }}')">
+          {{ rc.username }} ({{ rc.upi_id }})
+        </button>
+        {% endfor %}
       </div>
-      <div class="mb-3">
-        <label>Receiver UPI ID</label>
-        <input type="text" name="receiver_upi_id" class="form-control" placeholder="name123SpendSmartbank" required>
+    </div>
+    {% endif %}
+
+    <!-- Favorites -->
+    {% if favorites %}
+    <div class="mb-3">
+      <label class="form-label">Favorites</label>
+      <div class="d-flex flex-wrap gap-2">
+        {% for fav in favorites %}
+        <button type="button" class="btn btn-outline-primary btn-sm"
+                onclick="selectUser('{{ fav.upi_id }}')">
+          ★ {{ fav.username }} ({{ fav.upi_id }})
+        </button>
+        {% endfor %}
       </div>
-      <div class="mb-3">
-        <label>Amount (₹)</label>
-        <input type="number" step="0.01" min="1" name="amount" class="form-control" placeholder="e.g. 500" required>
-      </div>
-      <div class="mb-3">
-        <label>Note (optional)</label>
-        <input type="text" name="note" class="form-control" placeholder="e.g. Rent, Dinner split">
-      </div>
-      <div class="mb-4">
-        <label>Transaction PIN</label>
-        <input type="password" name="pin" inputmode="numeric" maxlength="4" class="form-control" placeholder="4-digit PIN" required>
-      </div>
-      <button type="submit" class="btn vb-btn-primary w-100 py-2">
-        <i class="bi bi-lock-fill"></i> Confirm &amp; Send
-      </button>
-    </form>
-  </div>
+    </div>
+    {% endif %}
+
+    <!-- Hidden field to store selected UPI ID -->
+    <input type="hidden" id="receiver_upi" name="receiver_upi">
+
+    <!-- Amount -->
+    <div class="mb-3">
+      <label for="amount" class="form-label">Amount (₹)</label>
+      <input type="number" step="0.01" name="amount" id="amount" class="form-control" required>
+    </div>
+
+    <!-- Note -->
+    <div class="mb-3">
+      <label for="note" class="form-label">Note (optional)</label>
+      <input type="text" name="note" id="note" class="form-control" maxlength="140">
+    </div>
+
+    <!-- PIN -->
+    <div class="mb-3">
+      <label for="pin" class="form-label">Transaction PIN</label>
+      <input type="password" name="pin" id="pin" class="form-control" required>
+    </div>
+
+    <button type="submit" class="btn vb-btn-primary">Send Money</button>
+  </form>
 </div>
+
+<!-- Toast Notifications -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+  <div id="toastContainer"></div>
+</div>
+
+<script>
+document.getElementById("searchUser").addEventListener("keyup", function() {
+    let query = this.value;
+    if (query.length < 2) {
+        document.getElementById("suggestions").innerHTML = "";
+        return;
+    }
+    fetch(`/search-users/?q=${query}`)
+      .then(res => res.json())
+      .then(data => {
+        let html = "";
+        data.forEach(u => {
+          html += `<button type="button" class="list-group-item list-group-item-action"
+                      onclick="selectUser('${u.upi_id}')">
+                      ${u.username} (${u.upi_id})
+                   </button>`;
+        });
+        document.getElementById("suggestions").innerHTML = html;
+      });
+});
+
+function selectUser(upiId) {
+    document.getElementById("receiver_upi").value = upiId;
+    document.getElementById("searchUser").value = upiId;
+    document.getElementById("suggestions").innerHTML = "";
+}
+
+// Toast helper
+function showToast(message, type="success") {
+  const toast = document.createElement("div");
+  toast.className = `toast align-items-center text-bg-${type} border-0 show mb-2`;
+  toast.innerHTML = `<div class="d-flex"><div class="toast-body">${message}</div>
+    <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.parentElement.parentElement.remove()"></button></div>`;
+  document.getElementById("toastContainer").appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+</script>
 {% endblock %}

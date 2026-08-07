@@ -8,7 +8,7 @@
         <h4 class="vb-section-title mb-1"><i class="bi bi-cash-coin"></i> Loan Application</h4>
         <p class="text-muted small mb-4">Get an instant eligibility decision based on your income, expenses, and credit score.</p>
 
-        <form method="post">
+        <form method="post" id="loanForm">
           {% csrf_token %}
           <div class="row g-3">
             <div class="col-md-6">
@@ -43,7 +43,11 @@
 
           {% if form.errors %}
           <div class="alert vb-alert-error mt-3">
-            {% for field in form %}{% for error in field.errors %}<div>{{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
+            {% for field in form %}
+              {% for error in field.errors %}
+                <div>{{ field.label }}: {{ error }}</div>
+              {% endfor %}
+            {% endfor %}
           </div>
           {% endif %}
 
@@ -51,10 +55,60 @@
             <i class="bi bi-info-circle"></i> Approval rules: credit score ≥ 650, debt-to-income ratio ≤ 45%, and EMI ≤ 60% of disposable income.
           </div>
 
+          <!-- Eligibility Preview Button -->
+          <button type="button" class="btn vb-btn-outline w-100 py-2 mt-2" data-bs-toggle="modal" data-bs-target="#loanPreview">
+            Preview Eligibility
+          </button>
+
+          <!-- Submit Button -->
           <button type="submit" class="btn vb-btn-primary w-100 py-2 mt-2">Check Eligibility &amp; Apply</button>
         </form>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Loan Preview Modal -->
+<div class="modal fade" id="loanPreview" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Loan Eligibility Preview</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Estimated EMI:</strong> <span id="previewEmi">—</span></p>
+        <p><strong>Debt-to-Income Ratio:</strong> <span id="previewDti">—</span>%</p>
+        <p><strong>Approval Chance:</strong> <span id="previewStatus">—</span></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function calculateEMI(principal, rate, tenure) {
+  let monthlyRate = rate / 12 / 100;
+  if (monthlyRate === 0) return (principal / tenure).toFixed(2);
+  let emi = principal * monthlyRate * Math.pow(1+monthlyRate, tenure) /
+            (Math.pow(1+monthlyRate, tenure) - 1);
+  return emi.toFixed(2);
+}
+
+document.querySelector('[data-bs-target="#loanPreview"]').addEventListener('click', function() {
+  let salary = parseFloat(document.getElementById("id_monthly_salary").value) || 0;
+  let expenses = parseFloat(document.getElementById("id_monthly_expenses").value) || 0;
+  let existingEmi = parseFloat(document.getElementById("id_existing_emi").value) || 0;
+  let loanAmount = parseFloat(document.getElementById("id_loan_amount").value) || 0;
+  let tenure = parseInt(document.getElementById("id_tenure_months").value) || 0;
+  let creditScore = parseInt(document.getElementById("id_credit_score").value) || 0;
+
+  // Default interest rate (approximate)
+  let rate = 10.0;
+
+  let emi = calculateEMI(loanAmount, rate, tenure);
+  let dti = ((expenses + existingEmi + parseFloat(emi)) / (salary || 1)) * 100;
+
+  document.getElementById("previewStatus").innerText = status;
+});
+</script>
 {% endblock %}
