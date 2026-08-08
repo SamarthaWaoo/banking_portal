@@ -9,5 +9,4 @@ urlpatterns = [
     path('upi/', include('upi.urls')),
     path('loans/', include('loans.urls')),
     path('admin-dashboard/', include('admin_dashboard.urls')),
-
-    ]
+]

@@ -162,3 +162,4 @@ class LoanApplication(models.Model):
 
     def __str__(self):
         return f"{self.application_id} - {self.user.username} - {self.status}"
+Loan = LoanApplication

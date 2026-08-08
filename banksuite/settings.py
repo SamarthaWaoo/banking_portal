@@ -8,9 +8,9 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY: In production these are read from environment variables (see .env.example)
-SECRET_KEY = os.environ.get('SECRET_KEY')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CHANGE_THIS_TO_A_RANDOM_STRING')
 
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+DEBUG = True
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'accounts',
     'upi',
     'loans',
+    'admin_dashboard' ,
 ]
 
 MIDDLEWARE = [
@@ -95,6 +96,7 @@ STORAGES = {
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 
 LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'upi:dashboard'

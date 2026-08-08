@@ -11,17 +11,14 @@ def register_view(request):
     if request.user.is_authenticated:
         return redirect('upi:dashboard')
 
-def landing_view(request):
-    return render(request, 'landing.html')
-
     if request.method == 'POST':
         form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
-            # Auto-create a savings account with a welcome bonus balance (simulation)
+            # Explicitly create the BankAccount here — more reliable than a signal.
             BankAccount.objects.create(user=user, account_type='SAVINGS')
             auth_login(request, user)
-            messages.success(request, "Welcome to SpendSmart Bank! Your account has been created.")
+            messages.success(request, "Welcome to SpendSmart Bank! Your savings account is ready.")
             return redirect('accounts:set_pin')
     else:
         form = RegisterForm()
@@ -34,6 +31,7 @@ def set_pin_view(request):
         form = SetPinForm(request.POST)
         if form.is_valid():
             request.user.set_transaction_pin(form.cleaned_data['pin'])
+            request.user.reset_pin_attempts()   # clear any stale lock on PIN change
             request.user.save()
             messages.success(request, "Transaction PIN set successfully.")
             return redirect('upi:dashboard')

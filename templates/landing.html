@@ -1,29 +1,167 @@
 {% extends "base.html" %}
 {% block title %}SpendSmart Bank — Banking Made Simple{% endblock %}
 {% block content %}
+
+<!-- ── Hero ──────────────────────────────────────────────────────── -->
 <section class="vb-hero">
   <div class="container">
     <div class="row align-items-center">
       <div class="col-lg-7">
         <div class="vb-eyebrow mb-2">Digital Banking Simulation</div>
-        <h1>Banking that moves as fast as your life.</h1>
-        <p class="lead mt-3">Send money instantly, apply for loans in minutes, and manage everything from one secure dashboard — SpendSmart Bank brings payments and lending together.</p>
-        <div class="mt-4 d-flex gap-3">
+        <h1>Banking that moves<br>as fast as your life.</h1>
+        <p class="lead mt-3">
+          Send money instantly, apply for loans in minutes, and manage
+          everything from one secure dashboard.
+        </p>
+        <div class="mt-4 d-flex gap-3 flex-wrap">
           {% if user.is_authenticated %}
-            <a href="{% url 'upi:dashboard' %}" class="btn vb-btn-primary btn-lg px-4">Go to Dashboard</a>
+            <a href="{% url 'upi:dashboard' %}" class="btn vb-btn-primary btn-lg px-4">
+              Go to Dashboard
+            </a>
           {% else %}
-            <a href="{% url 'accounts:register' %}" class="btn vb-btn-primary btn-lg px-4">Open Free Account</a>
-            <a href="{% url 'accounts:login' %}" class="btn vb-btn-outline btn-lg px-4">Login</a>
+            <a href="{% url 'accounts:register' %}" class="btn vb-btn-primary btn-lg px-4">
+              Open Free Account
+            </a>
+            <a href="{% url 'accounts:login' %}" class="btn vb-btn-outline btn-lg px-4">
+              Login
+            </a>
           {% endif %}
         </div>
       </div>
-      <div class="col-lg-5 d-none d-lg-block text-center">
-        <i class="bi bi-safe2-fill" style="font-size: 10rem; color: rgba(201,163,39,0.94);"></i>
+      <div class="col-lg-5 d-none d-lg-flex justify-content-center align-items-center">
+        <i class="bi bi-safe2-fill" style="font-size:9rem;color:rgba(201,163,39,0.92);"></i>
       </div>
     </div>
   </div>
 </section>
 
-<!-- stats, features, CTA, disclaimer -->
-… rest of your landing content …
+<!-- ── Stat strip ─────────────────────────────────────────────────── -->
+<div class="container" style="margin-top:-2.5rem;position:relative;z-index:2;">
+  <div class="vb-stat-strip row g-0 text-center py-3">
+    <div class="col-6 col-md-3 py-3 border-end">
+      <div class="stat-num">₹0 Fee</div>
+      <div class="stat-label">on all transfers</div>
+    </div>
+    <div class="col-6 col-md-3 py-3 border-end">
+      <div class="stat-num">Instant</div>
+      <div class="stat-label">UPI transfers</div>
+    </div>
+    <div class="col-6 col-md-3 py-3 border-end">
+      <div class="stat-num">4 Types</div>
+      <div class="stat-label">of loans available</div>
+    </div>
+    <div class="col-6 col-md-3 py-3">
+      <div class="stat-num">256-bit</div>
+      <div class="stat-label">PIN-secured transfers</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Features ──────────────────────────────────────────────────── -->
+<section class="container py-6 mt-5">
+  <div class="text-center mb-5">
+    <div class="vb-eyebrow mb-2">Everything in one place</div>
+    <h2 class="fw-bold" style="color:var(--vb-navy)">Built like a real bank</h2>
+  </div>
+  <div class="row g-4">
+    <div class="col-md-4">
+      <div class="vb-card p-4 h-100">
+        <div class="vb-feature-icon mb-3">
+          <i class="bi bi-send-fill"></i>
+        </div>
+        <h5 class="fw-semibold">Instant UPI Transfers</h5>
+        <p class="text-muted small mb-0">
+          Send money to any SpendSmart UPI ID in seconds. PIN-protected,
+          atomic, and fully logged — every rupee accounted for.
+        </p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="vb-card p-4 h-100">
+        <div class="vb-feature-icon mb-3">
+          <i class="bi bi-cash-coin"></i>
+        </div>
+        <h5 class="fw-semibold">Smart Loan Engine</h5>
+        <p class="text-muted small mb-0">
+          Apply for personal, home, car, or education loans. Instant
+          eligibility decision with full amortization schedule.
+        </p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="vb-card p-4 h-100">
+        <div class="vb-feature-icon mb-3">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <h5 class="fw-semibold">PIN Lockout Protection</h5>
+        <p class="text-muted small mb-0">
+          3 wrong PINs locks transfers for 5 minutes. Every failed attempt
+          is flagged for admin review — just like a real bank.
+        </p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="vb-card p-4 h-100">
+        <div class="vb-feature-icon mb-3">
+          <i class="bi bi-clock-history"></i>
+        </div>
+        <h5 class="fw-semibold">Full Transaction History</h5>
+        <p class="text-muted small mb-0">
+          Filter by status, see balance after each transaction,
+          download a PDF statement at any time.
+        </p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="vb-card p-4 h-100">
+        <div class="vb-feature-icon mb-3">
+          <i class="bi bi-person-vcard"></i>
+        </div>
+        <h5 class="fw-semibold">Simulated KYC</h5>
+        <p class="text-muted small mb-0">
+          PAN and Aadhaar format validation on sign-up, unique Customer ID,
+          and avatar generation — the full onboarding flow.
+        </p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="vb-card p-4 h-100">
+        <div class="vb-feature-icon mb-3">
+          <i class="bi bi-shield-lock"></i>
+        </div>
+        <h5 class="fw-semibold">Admin Operations Panel</h5>
+        <p class="text-muted small mb-0">
+          Staff can view all transactions, resolve failures, freeze/unfreeze
+          accounts, and review an audit log — all in one dashboard.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ────────────────────────────────────────────────────────── -->
+{% if not user.is_authenticated %}
+<section style="background:var(--vb-navy);color:#fff;" class="py-5 mt-5">
+  <div class="container text-center">
+    <h3 class="fw-bold mb-3">Ready to get started?</h3>
+    <p class="text-white-50 mb-4">
+      Open your free simulated savings account in under two minutes.
+    </p>
+    <a href="{% url 'accounts:register' %}" class="btn vb-btn-primary btn-lg px-5">
+      Open Free Account
+    </a>
+  </div>
+</section>
+{% endif %}
+
+<!-- ── Disclaimer ─────────────────────────────────────────────────── -->
+<div class="container my-4">
+  <div class="alert vb-alert-warning small mb-0" role="alert">
+    <i class="bi bi-info-circle"></i>
+    <strong>Simulation only.</strong> SpendSmart Bank is a demo project.
+    No real money, KYC verification, or banking services are involved.
+    PAN and Aadhaar numbers are format-validated only — never sent anywhere.
+  </div>
+</div>
+
 {% endblock %}
