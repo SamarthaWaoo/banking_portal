@@ -61,7 +61,10 @@
           <td class="small text-muted">
             {{ t.note|default:"—" }}
             {% if t.failure_reason %}
-              <br><span class="text-danger">{{ t.failure_reason }}</span>
+              <br><span class="text-danger"><i class="bi bi-exclamation-circle"></i> {{ t.failure_reason }}</span>
+            {% endif %}
+            {% if t.resolved and t.resolution_note %}
+              <br><span class="text-success"><i class="bi bi-shield-check"></i> <strong>Admin:</strong> {{ t.resolution_note }}</span>
             {% endif %}
           </td>
           <td>

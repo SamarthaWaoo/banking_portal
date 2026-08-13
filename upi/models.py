@@ -39,7 +39,7 @@ class BankAccount(models.Model):
     account_type = models.CharField(max_length=10, choices=ACCOUNT_TYPES, default='SAVINGS')
     upi_id = models.CharField(max_length=50, unique=True, blank=True)
     balance = models.DecimalField(
-        max_digits=14, decimal_places=2, default=Decimal('10000.00'),
+        max_digits=14, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))]
     )
     blocked_balance = models.DecimalField(
@@ -52,10 +52,15 @@ class BankAccount(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
+        # Generate account number if missing
         if not self.account_number:
             self.account_number = self._generate_account_number()
+        # Generate UPI ID if missing
         if not self.upi_id:
             self.upi_id = f"{self.user.username}{random.randint(100, 999)}@spendsmartbank"
+        # Assign random initial balance if new account
+        if self._state.adding and self.balance == Decimal('0.00'):
+            self.balance = random.randint(1000, 10000)
         super().save(*args, **kwargs)
 
     def _generate_account_number(self):
@@ -142,3 +147,22 @@ class RecentContact(models.Model):
 
     def __str__(self):
         return f"{self.user.username} → {self.contact_account.upi_id}"
+
+
+class Beneficiary(models.Model):
+    """Saved/favourite recipients for quick send."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='beneficiaries'
+    )
+    account = models.ForeignKey(
+        BankAccount, on_delete=models.CASCADE
+    )
+    nickname = models.CharField(max_length=40, blank=True)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['nickname', 'added_at']
+        unique_together = ('user', 'account')
+
+    def __str__(self):
+        return f"{self.user.username} → {self.account.upi_id} ({self.nickname})"

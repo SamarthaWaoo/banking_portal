@@ -64,7 +64,9 @@ class LoanApplication(models.Model):
     def save(self, *args, **kwargs):
         if not self.application_id:
             self.application_id = "LN" + uuid.uuid4().hex[:10].upper()
-        if not self.interest_rate:
+        # Only apply the default rate when the user left the field blank.
+        # A user-supplied rate (even if it equals the default) must be preserved.
+        if self.interest_rate is None:
             self.interest_rate = BASE_INTEREST_RATES.get(self.loan_type, Decimal('11.0'))
         super().save(*args, **kwargs)
 
@@ -90,17 +92,20 @@ class LoanApplication(models.Model):
         """
         Rule-based approval engine:
         - Credit score >= 650
-        - DTI ratio <= 45%
-        - EMI <= 60% of disposable income
+        - EMI <= 60% of disposable income (salary minus expenses)
+        Note: DTI ratio is calculated for informational purposes only and
+        does NOT affect approval.
         """
+        # interest_rate is normally set inside save(), but evaluate() is called
+        # BEFORE save() — ensure it is populated here too so calculate_emi() works.
+        if not self.interest_rate:
+            self.interest_rate = BASE_INTEREST_RATES.get(self.loan_type, Decimal('11.0'))
         self.emi_amount = Decimal(str(self.calculate_emi()))
         self.dti_ratio = Decimal(str(self.calculate_dti()))
 
         reasons = []
         if self.credit_score < 650:
             reasons.append(f"Credit score {self.credit_score} is below 650")
-        if self.dti_ratio > 45:
-            reasons.append(f"Debt-to-income ratio {self.dti_ratio}% exceeds 45%")
 
         disposable = float(self.monthly_salary) - float(self.monthly_expenses)
         if disposable > 0 and float(self.emi_amount) > 0.6 * disposable:
@@ -108,14 +113,14 @@ class LoanApplication(models.Model):
         elif disposable <= 0:
             reasons.append("No disposable income after monthly expenses")
 
+        # Store computed eligibility flags as decision_reason for admin review.
+        # Status always starts as PENDING — admin approves or rejects manually.
         if reasons:
-            self.status = 'REJECTED'
-            self.decision_reason = "; ".join(reasons)
+            self.decision_reason = "Potential issues: " + "; ".join(reasons)
         else:
-            self.status = 'APPROVED'
             self.decision_reason = "Meets all eligibility criteria"
-
-        self.decided_at = timezone.now()
+        self.status = 'PENDING'
+        # decided_at is set when admin actually approves/rejects
         return self.status
 
     def disburse(self):

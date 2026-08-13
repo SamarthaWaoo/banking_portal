@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Admin Login — SpendSmart Bank{% endblock %}
+{% block content %}
+<div class="vb-auth-wrap">
+  <div class="container">
+    <div class="vb-auth-card row g-0 mx-auto" style="max-width:720px;">
+
+      <!-- Side panel -->
+      <div class="col-lg-5 vb-auth-side d-none d-lg-flex flex-column justify-content-center"
+           style="background:linear-gradient(135deg,#0a2540 60%,#c9a227);">
+        <i class="bi bi-shield-lock-fill" style="font-size:3rem;color:var(--vb-gold);"></i>
+        <h3 class="mt-3">Admin Portal</h3>
+        <p class="text-white-50 small">
+          This portal is restricted to authorised bank staff.
+          Your session is logged for audit purposes.
+        </p>
+        <p class="mt-3 small">
+          <a href="{% url 'accounts:admin_register' %}" class="text-warning">
+            <i class="bi bi-person-plus"></i> Create admin account
+          </a>
+        </p>
+        <p class="small">
+          <a href="{% url 'accounts:login' %}" class="text-white-50">
+            ← Customer login
+          </a>
+        </p>
+      </div>
+
+      <!-- Login form -->
+      <div class="col-lg-7 p-4 p-lg-5 d-flex flex-column justify-content-center">
+        <div class="text-center mb-4">
+          <span class="badge bg-danger mb-2">STAFF ONLY</span>
+          <h4 class="vb-section-title">Admin Login</h4>
+        </div>
+
+        <!-- ✅ Show the exact reason the login failed -->
+        {% if error %}
+        <div class="alert vb-alert-error mb-3">
+          <i class="bi bi-exclamation-triangle"></i> {{ error }}
+        </div>
+        {% endif %}
+        {% if messages %}
+        <div class="alert vb-alert-error mb-3">
+          {% for message in messages %}
+            <i class="bi bi-exclamation-triangle"></i> {{ message }}
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">Admin Username</label>
+            <input type="text" name="username" class="form-control" required autofocus>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Password</label>
+            <div class="input-group">
+              <input type="password" name="password" id="adminPw"
+                     class="form-control" required>
+              <button type="button" class="btn btn-outline-secondary eye-toggle"
+                      data-target="adminPw" tabindex="-1">
+                <i class="bi bi-eye-slash"></i>
+              </button>
+            </div>
+          </div>
+          <button type="submit" class="btn vb-btn-primary w-100 py-2">
+            <i class="bi bi-shield-lock"></i> Login as Admin
+          </button>
+        </form>
+
+        <p class="text-center small text-muted mt-3">
+          <a href="{% url 'accounts:admin_register' %}">Create admin account</a>
+          &nbsp;·&nbsp;
+          <a href="{% url 'accounts:login' %}">Customer login</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.eye-toggle').forEach(btn => {
+  btn.addEventListener('click', function () {
+    const field = document.getElementById(this.dataset.target);
+    const icon  = this.querySelector('i');
+    if (field.type === 'password') {
+      field.type = 'text';
+      icon.classList.remove('bi-eye-slash');
+      icon.classList.add('bi-eye');
+    } else {
+      field.type = 'password';
+      icon.classList.remove('bi-eye');
+      icon.classList.add('bi-eye-slash');
+    }
+  });
+});
+</script>
+{% endblock %}

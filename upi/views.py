@@ -8,7 +8,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.utils import timezone
 
-from .models import BankAccount, Transaction, RecentContact
+from .models import BankAccount, Transaction, RecentContact, Beneficiary
 from accounts.models import CustomUser
 
 
@@ -18,7 +18,7 @@ from accounts.models import CustomUser
 # ─────────────────────────────────────────────
 def search_users(request):
     query = request.GET.get('q', '').strip()
-    if len(query) < 2:
+    if len(query) < 1:
         return JsonResponse([], safe=False)
 
     # Search by username or UPI ID across BankAccount
@@ -27,7 +27,30 @@ def search_users(request):
         Q(upi_id__icontains=query) |
         Q(user__first_name__icontains=query) |
         Q(user__last_name__icontains=query)
-    ).select_related('user').distinct()[:8]
+    ).select_related('user').distinct()
+
+    if request.user.is_authenticated:
+        accounts = accounts.exclude(user=request.user)
+
+    accounts = accounts[:8]
+
+    results = [
+        {
+            'username': acc.user.get_full_name() or acc.user.username,
+            'upi_id': acc.upi_id,
+            'account_type': acc.get_account_type_display(),
+        }
+        for acc in accounts
+    ]
+    return JsonResponse(results, safe=False)
+
+
+# ─────────────────────────────────────────────
+# AJAX: Return ALL active users, for the "Send To" dropdown
+# shown before the user starts typing.
+# ─────────────────────────────────────────────
+def get_all_users(request):
+    accounts = BankAccount.objects.filter(is_active=True).select_related('user')
 
     if request.user.is_authenticated:
         accounts = accounts.exclude(user=request.user)
@@ -38,7 +61,7 @@ def search_users(request):
             'upi_id': acc.upi_id,
             'account_type': acc.get_account_type_display(),
         }
-        for acc in accounts
+        for acc in accounts.order_by('user__username')[:200]
     ]
     return JsonResponse(results, safe=False)
 
@@ -75,6 +98,11 @@ def send_money_view(request):
     recent_contacts = RecentContact.objects.filter(
         user=request.user
     ).select_related('contact_account__user')[:6]
+
+    # Saved beneficiaries
+    beneficiaries = Beneficiary.objects.filter(
+        user=request.user
+    ).select_related('account__user')
 
     # Pre-fill receiver from ?receiver= query param (from "Send Again" link)
     prefill_receiver = request.GET.get('receiver', '')
@@ -217,6 +245,7 @@ def send_money_view(request):
         'accounts': my_accounts,
         'recent_contacts': recent_contacts,
         'prefill_receiver': prefill_receiver,
+        'beneficiaries': beneficiaries,
     })
 
 
@@ -289,3 +318,41 @@ def download_statement_pdf(request):
     elements.append(table)
     doc.build(elements)
     return response
+
+
+# ─────────────────────────────────────────────
+# Add Beneficiary (Save a recipient as favourite)
+# ─────────────────────────────────────────────
+@login_required
+def add_beneficiary(request):
+    if request.method == 'POST':
+        upi_id = request.POST.get('upi_id', '').strip()
+        nickname = request.POST.get('nickname', '').strip()
+        account = BankAccount.objects.filter(upi_id=upi_id, is_active=True).first()
+        if not account:
+            messages.error(request, f"UPI ID '{upi_id}' not found.")
+        elif account.user == request.user:
+            messages.error(request, "You cannot add yourself as a beneficiary.")
+        else:
+            _, created = Beneficiary.objects.get_or_create(
+                user=request.user, account=account,
+                defaults={'nickname': nickname or (account.user.get_full_name() or account.user.username)}
+            )
+            if created:
+                messages.success(request, f"Beneficiary '{nickname or account.user.username}' saved.")
+            else:
+                messages.info(request, "This account is already in your beneficiaries.")
+    return redirect('upi:send_money')
+
+
+# ─────────────────────────────────────────────
+# Remove Beneficiary
+# ─────────────────────────────────────────────
+@login_required
+def remove_beneficiary(request, beneficiary_id):
+    ben = Beneficiary.objects.filter(id=beneficiary_id, user=request.user).first()
+    if ben:
+        ben.delete()
+        messages.success(request, "Beneficiary removed.")
+    return redirect('upi:send_money')
+

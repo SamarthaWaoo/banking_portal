@@ -1,8 +1,7 @@
 from decimal import Decimal
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render, redirect, get_object_or_404
-from django.utils import timezone
 
 from .forms import LoanApplicationForm
 from .models import LoanApplication
@@ -14,17 +13,27 @@ from .models import LoanApplication
 @login_required
 def apply_view(request):
     if request.method == 'POST':
-        form = LoanApplicationForm(request.POST)
+        # tenure_months comes from the hidden field set by JS (years * 12).
+        # If the user never triggered the years input event the hidden field
+        # is empty, so we coerce it here before form validation runs.
+        post_data = request.POST.copy()
+        tenure_raw = post_data.get('tenure_months', '').strip()
+        if not tenure_raw:
+            # fall back to the years field if present
+            years_raw = post_data.get('tenure_years', '').strip()
+            if years_raw.isdigit() and int(years_raw) > 0:
+                post_data['tenure_months'] = str(int(years_raw) * 12)
+        form = LoanApplicationForm(post_data)
         if form.is_valid():
             application = form.save(commit=False)
             application.user = request.user
-            application.save()  # sets interest_rate via model save()
-            application.evaluate()
+            application.evaluate()   # computes EMI, DTI, eligibility flags; sets PENDING
             application.save()
-            if application.status == 'APPROVED':
-                messages.success(request, f"Congratulations! Loan {application.application_id} approved.")
-            else:
-                messages.warning(request, f"Loan {application.application_id} was not approved this time.")
+            messages.success(
+                request,
+                f"Application {application.application_id} submitted successfully. "
+                f"Our team will review it and update you shortly."
+            )
             return redirect('loans:loan_detail', application_id=application.application_id)
     else:
         form = LoanApplicationForm()
@@ -49,16 +58,18 @@ def loan_detail_view(request, application_id):
     schedule = loan.amortization_schedule() if loan.status in ['APPROVED', 'DISBURSED'] else []
     total_interest = sum(row['interest'] for row in schedule) if schedule else 0
     return render(request, 'loans/loan_detail.html', {
-        'loan': loan, 'schedule': schedule, 'total_interest': round(total_interest, 2),
+        'loan': loan,
+        'schedule': schedule,
+        'total_interest': round(total_interest, 2),
     })
 
 
 # -----------------------------
-# Disburse Loan (Admin/Simulation)
+# Disburse Loan (Admin Only)
 # -----------------------------
-@login_required
+@user_passes_test(lambda u: u.is_staff or getattr(u, "is_admin", False))
 def disburse_view(request, application_id):
-    loan = get_object_or_404(LoanApplication, application_id=application_id, user=request.user)
+    loan = get_object_or_404(LoanApplication, application_id=application_id)
     if loan.status == 'APPROVED':
         loan.disburse()
         messages.success(request, f"Loan {loan.application_id} disbursed successfully.")
@@ -94,3 +105,41 @@ def repay_view(request, application_id):
         return redirect('loans:loan_detail', application_id=application_id)
 
     return render(request, 'loans/repay.html', {'loan': loan})
+
+# -----------------------------
+# Approve Loan (Admin Only)
+# -----------------------------
+@user_passes_test(lambda u: u.is_staff or getattr(u, "is_admin", False))
+def approve_loan_view(request, application_id):
+    from django.utils import timezone
+    loan = get_object_or_404(LoanApplication, application_id=application_id)
+    if request.method == 'POST':
+        if loan.status == 'PENDING':
+            loan.status = 'APPROVED'
+            loan.decision_reason = request.POST.get('note', 'Approved by admin.')
+            loan.decided_at = timezone.now()
+            loan.save(update_fields=['status', 'decision_reason', 'decided_at'])
+            messages.success(request, f"Loan {loan.application_id} approved.")
+        else:
+            messages.error(request, "Loan is not in PENDING state.")
+    return redirect('admin_dashboard:dashboard')
+
+
+# -----------------------------
+# Reject Loan (Admin Only)
+# -----------------------------
+@user_passes_test(lambda u: u.is_staff or getattr(u, "is_admin", False))
+def reject_loan_view(request, application_id):
+    from django.utils import timezone
+    loan = get_object_or_404(LoanApplication, application_id=application_id)
+    if request.method == 'POST':
+        if loan.status == 'PENDING':
+            reason = request.POST.get('reason', 'Rejected by admin.').strip()
+            loan.status = 'REJECTED'
+            loan.decision_reason = reason
+            loan.decided_at = timezone.now()
+            loan.save(update_fields=['status', 'decision_reason', 'decided_at'])
+            messages.success(request, f"Loan {loan.application_id} rejected.")
+        else:
+            messages.error(request, "Loan is not in PENDING state.")
+    return redirect('admin_dashboard:dashboard')

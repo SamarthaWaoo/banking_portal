@@ -3,64 +3,102 @@
 {% block content %}
 <div class="vb-auth-wrap">
   <div class="container">
-    <div class="vb-auth-card row g-0 mx-auto" style="max-width: 800px;">
+    <div class="vb-auth-card row g-0 mx-auto" style="max-width:800px;">
+
+      <!-- Side panel -->
       <div class="col-lg-5 vb-auth-side d-none d-lg-flex flex-column justify-content-center">
-        <i class="bi bi-shield-lock" style="font-size: 3rem; color: var(--vb-gold);"></i>
+        <i class="bi bi-shield-lock" style="font-size:3rem;color:var(--vb-gold);"></i>
         <h3 class="mt-3">Welcome back</h3>
         <p class="text-white-50">Login to access your dashboard, send money, and manage your loans.</p>
+        <ul class="list-unstyled small text-white-50 mt-3">
+          <li class="mb-2"><i class="bi bi-lock-fill text-warning"></i> PIN-protected transfers</li>
+          <li class="mb-2"><i class="bi bi-shield-check text-warning"></i> {{ max_attempts }}-attempt lockout protection</li>
+          <li class="mb-2"><i class="bi bi-person-badge text-warning"></i> <a href="{% url 'accounts:admin_login' %}" class="text-warning">Admin? Login here</a></li>
+        </ul>
       </div>
+
+      <!-- Form -->
       <div class="col-lg-7 p-4 p-lg-5 d-flex flex-column justify-content-center">
-        <h4 class="vb-section-title mb-4">Login to your account</h4>
-        <form method="post">
+        <h4 class="vb-section-title mb-1">Login to your account</h4>
+        <p class="text-muted small mb-4">
+          <a href="{% url 'accounts:admin_login' %}" class="text-muted">Admin login →</a>
+        </p>
+
+        <!-- Lockout banner -->
+        {% if locked %}
+        <div class="alert vb-alert-error d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-lock-fill fs-5"></i>
+          <div>{{ lock_msg }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Attempt counter bar -->
+        {% if attempts and attempts > 0 and not locked %}
+        <div class="mb-3">
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>Failed attempts</span>
+            <span>{{ attempts }} / {{ max_attempts }}</span>
+          </div>
+          <div class="progress" style="height:6px;">
+            <div class="progress-bar bg-danger"
+                 style="width:{% widthratio attempts max_attempts 100 %}%"></div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Error -->
+        {% if error and not locked %}
+        <div class="alert vb-alert-error mb-3 small">
+          <i class="bi bi-exclamation-circle"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="post" {% if locked %}onsubmit="return false;"{% endif %}>
           {% csrf_token %}
           <div class="mb-3">
-            <label>Username</label>
-            <input type="text" name="username" class="form-control" required autofocus>
+            <label class="form-label">Username</label>
+            <input type="text" name="username" class="form-control" required autofocus
+                   {% if locked %}disabled{% endif %}>
           </div>
-          <div class="mb-3 position-relative">
-            <label>Password</label>
+
+          <!-- Password with eye toggle -->
+          <div class="mb-3">
+            <label class="form-label">Password</label>
             <div class="input-group">
-              <input type="password" name="password" id="passwordField" class="form-control" required>
-              <button type="button" class="btn btn-outline-secondary" id="togglePassword">
-                <i class="bi bi-eye"></i>
+              <input type="password" name="password" id="loginPassword"
+                     class="form-control" required
+                     {% if locked %}disabled{% endif %}>
+              <button type="button" class="btn btn-outline-secondary" id="toggleLoginPw"
+                      tabindex="-1" title="Show/hide password">
+                <i class="bi bi-eye" id="loginEyeIcon"></i>
               </button>
             </div>
           </div>
-          {% if form.errors %}
-          <div class="alert vb-alert-error">Invalid username or password.</div>
-          {% endif %}
-          <button type="submit" class="btn vb-btn-primary w-100 py-2 mt-2">Login</button>
+
+          <button type="submit" class="btn vb-btn-primary w-100 py-2 mt-2"
+                  {% if locked %}disabled{% endif %}>
+            Login
+          </button>
         </form>
 
         <p class="text-center small text-muted mt-3">
-          New to SpendSmart Bank? <a href="{% url 'accounts:register' %}">Open an account</a>
+          New to SpendSmart Bank?
+          <a href="{% url 'accounts:register' %}">Open an account</a>
         </p>
-
-        <!-- Session/Login Alert -->
-        {% if login_alert %}
-        <div class="alert alert-info mt-3 small">
-          {{ login_alert }}
-        </div>
-        {% endif %}
       </div>
     </div>
   </div>
 </div>
 
 <script>
-  // Toggle password visibility
-  document.getElementById("togglePassword").addEventListener("click", function () {
-    const passwordField = document.getElementById("passwordField");
-    const icon = this.querySelector("i");
-    if (passwordField.type === "password") {
-      passwordField.type = "text";
-      icon.classList.remove("bi-eye");
-      icon.classList.add("bi-eye-slash");
-    } else {
-      passwordField.type = "password";
-      icon.classList.remove("bi-eye-slash");
-      icon.classList.add("bi-eye");
-    }
-  });
+// Eye toggle — password field
+document.getElementById('toggleLoginPw').addEventListener('click', function () {
+  const field = document.getElementById('loginPassword');
+  const icon  = document.getElementById('loginEyeIcon');
+  const isHidden = field.type === 'password';
+  field.type = isHidden ? 'text' : 'password';
+  icon.classList.toggle('bi-eye',      !isHidden);
+  icon.classList.toggle('bi-eye-slash', isHidden);
+});
 </script>
 {% endblock %}

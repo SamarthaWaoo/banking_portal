@@ -44,9 +44,30 @@
       {% endif %}
     </div>
 
-    <div class="alert {% if loan.status == 'APPROVED' %}vb-alert-success{% else %}vb-alert-error{% endif %} mt-4 mb-0">
-      <strong>Decision reason:</strong> {{ loan.decision_reason }}
+    {% if loan.status == 'PENDING' %}
+    <div class="alert vb-alert-warning mt-4 mb-0">
+      <i class="bi bi-hourglass-split"></i>
+      <strong>Application under review.</strong>
+      Your application has been submitted and is awaiting admin approval. We'll update you once a decision is made.
+      {% if loan.decision_reason %}
+      <div class="mt-2 small text-muted">Eligibility notes: {{ loan.decision_reason }}</div>
+      {% endif %}
     </div>
+    {% elif loan.status == 'APPROVED' %}
+    <div class="alert vb-alert-success mt-4 mb-0">
+      <i class="bi bi-check-circle-fill"></i>
+      <strong>Approved!</strong> {{ loan.decision_reason }}
+    </div>
+    {% elif loan.status == 'REJECTED' %}
+    <div class="alert vb-alert-error mt-4 mb-0">
+      <i class="bi bi-x-circle-fill"></i>
+      <strong>Not approved this time.</strong> {{ loan.decision_reason }}
+    </div>
+    {% else %}
+    <div class="alert vb-alert-info mt-4 mb-0">
+      <strong>Status:</strong> {{ loan.get_status_display }} — {{ loan.decision_reason }}
+    </div>
+    {% endif %}
   </div>
 
   {% if schedule %}

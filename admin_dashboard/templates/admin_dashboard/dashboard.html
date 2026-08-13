@@ -42,8 +42,8 @@
     </div>
     <div class="col-6 col-md-2">
       <div class="vb-card p-3 text-center">
-        <div class="text-muted small mb-1">Today Volume</div>
-        <div class="fw-bold fs-5" style="color:var(--vb-navy)">₹{{ today_volume }}</div>
+        <div class="text-muted small mb-1">Total Balance</div>
+        <div class="fw-bold fs-5" style="color:var(--vb-navy)">₹{{ total_balance }}</div>
       </div>
     </div>
   </div>
@@ -232,16 +232,53 @@
           <p class="mt-2 mb-0">No unresolved failures. All clear.</p>
         </div>
         {% endfor %}
+
+        <!-- Recently resolved failures (last 10) -->
+        {% with resolved_failed=resolved_failed %}
+        {% if resolved_failed %}
+        <hr>
+        <h6 class="text-muted mb-2"><i class="bi bi-check-all"></i> Recently Resolved</h6>
+        {% for t in resolved_failed %}
+        <div class="border rounded-3 p-3 mb-2 border-success bg-light">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+              <div class="fw-semibold small">{{ t.reference_id }}</div>
+              <div class="text-muted small">{{ t.timestamp|date:"d M Y, H:i" }} &mdash;
+                {{ t.sender_account.user.username|default:"unknown" }} → {{ t.receiver_account.upi_id|default:"unknown" }}
+              </div>
+            </div>
+            <div class="text-end">
+              <div class="fw-bold">₹{{ t.amount }}</div>
+              <span class="badge bg-success">Resolved</span>
+            </div>
+          </div>
+          <div class="mt-2 small">
+            <strong>Failure:</strong> <span class="text-danger">{{ t.failure_reason|default:"—" }}</span>
+          </div>
+          <div class="mt-1 small">
+            <strong>Admin note:</strong> <span class="text-success">{{ t.resolution_note|default:"—" }}</span>
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
       </div>
     </div>
 
     <!-- ── LOANS ──────────────────────────────────────────────── -->
     <div class="tab-pane fade" id="tabLoans" role="tabpanel">
       <div class="vb-card p-4">
-        <h6 class="mb-3">All Loan Applications</h6>
+        <h6 class="mb-1">All Loan Applications</h6>
+        <p class="text-muted small mb-3">Pending applications await your approval or rejection below.</p>
         <div class="table-responsive">
           <table class="table table-vb mb-0">
-            <thead><tr><th>App ID</th><th>User</th><th>Type</th><th>Amount</th><th>Tenure</th><th>Status</th><th>Applied</th></tr></thead>
+            <thead>
+              <tr>
+                <th>App ID</th><th>User</th><th>Type</th><th>Amount</th>
+                <th>Tenure</th><th>EMI</th><th>Credit Score</th>
+                <th>Status / Notes</th><th>Applied</th><th>Action</th>
+              </tr>
+            </thead>
             <tbody>
               {% for loan in loans %}
               <tr>
@@ -250,11 +287,49 @@
                 <td class="small">{{ loan.get_loan_type_display }}</td>
                 <td class="fw-bold">₹{{ loan.loan_amount }}</td>
                 <td class="small">{{ loan.tenure_months }}m</td>
-                <td><span class="vb-badge badge-status-{{ loan.status }}">{{ loan.get_status_display }}</span></td>
+                <td class="small">{% if loan.emi_amount %}₹{{ loan.emi_amount }}{% else %}—{% endif %}</td>
+                <td class="small">{{ loan.credit_score }}</td>
+                <td>
+                  <span class="vb-badge badge-status-{{ loan.status }}">{{ loan.get_status_display }}</span>
+                  {% if loan.decision_reason %}
+                  <div class="text-muted" style="font-size:0.72rem;margin-top:3px;">{{ loan.decision_reason }}</div>
+                  {% endif %}
+                </td>
                 <td class="small">{{ loan.applied_at|date:"d M Y" }}</td>
+                <td>
+                  {% if loan.status == 'PENDING' %}
+                  <div class="d-flex flex-column gap-1">
+                    <!-- Approve -->
+                    <form method="post" action="{% url 'loans:approve_loan' loan.application_id %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="note" value="Approved by admin.">
+                      <button type="submit" class="btn btn-sm btn-success w-100"
+                              onclick="return confirm('Approve loan {{ loan.application_id }}?')">
+                        <i class="bi bi-check-lg"></i> Approve
+                      </button>
+                    </form>
+                    <!-- Reject with reason -->
+                    <button type="button" class="btn btn-sm btn-outline-danger w-100"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#rejectForm{{ loan.id }}">
+                      <i class="bi bi-x-lg"></i> Reject
+                    </button>
+                    <div class="collapse mt-1" id="rejectForm{{ loan.id }}">
+                      <form method="post" action="{% url 'loans:reject_loan' loan.application_id %}">
+                        {% csrf_token %}
+                        <input type="text" name="reason" class="form-control form-control-sm mb-1"
+                               placeholder="Reason for rejection" required>
+                        <button type="submit" class="btn btn-sm btn-danger w-100">Confirm Reject</button>
+                      </form>
+                    </div>
+                  </div>
+                  {% else %}
+                  <span class="text-muted small">—</span>
+                  {% endif %}
+                </td>
               </tr>
               {% empty %}
-              <tr><td colspan="7" class="text-center text-muted py-3">No loans.</td></tr>
+              <tr><td colspan="10" class="text-center text-muted py-3">No loan applications.</td></tr>
               {% endfor %}
             </tbody>
           </table>

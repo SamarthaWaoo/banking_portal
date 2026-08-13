@@ -1,114 +1,279 @@
 {% extends "base.html" %}
-{% block title %}Apply for a Loan{% endblock %}
+{% block title %}Apply for a Loan — SpendSmart Bank{% endblock %}
 {% block content %}
 <div class="container py-5">
-  <div class="row justify-content-center">
+  <div class="row justify-content-center g-4">
+
+    <!-- LEFT: Form -->
     <div class="col-lg-7">
       <div class="vb-card p-4 p-lg-5">
-        <h4 class="vb-section-title mb-1"><i class="bi bi-cash-coin"></i> Loan Application</h4>
-        <p class="text-muted small mb-4">Get an instant eligibility decision based on your income, expenses, and credit score.</p>
+        <h4 class="vb-section-title mb-1">
+          <i class="bi bi-cash-coin"></i> Loan Application
+        </h4>
+        <p class="text-muted small mb-4">
+          Fill in the details below. Click <strong>Check Eligibility</strong> to see a full
+          breakdown before you apply.
+        </p>
 
         <form method="post" id="loanForm">
           {% csrf_token %}
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label>Loan Type</label>
-              {{ form.loan_type }}
-            </div>
-            <div class="col-md-6">
-              <label>Credit Score (300–900)</label>
-              {{ form.credit_score }}
-            </div>
-            <div class="col-md-6">
-              <label>Monthly Salary (₹)</label>
-              {{ form.monthly_salary }}
-            </div>
-            <div class="col-md-6">
-              <label>Monthly Expenses (₹)</label>
-              {{ form.monthly_expenses }}
-            </div>
-            <div class="col-md-6">
-              <label>Existing EMI (₹)</label>
-              {{ form.existing_emi }}
-            </div>
-            <div class="col-md-6">
-              <label>Loan Amount Required (₹)</label>
-              {{ form.loan_amount }}
-            </div>
-            <div class="col-md-6">
-              <label>Tenure (months)</label>
-              {{ form.tenure_months }}
-            </div>
-          </div>
 
           {% if form.errors %}
-          <div class="alert vb-alert-error mt-3">
-            {% for field in form %}
-              {% for error in field.errors %}
-                <div>{{ field.label }}: {{ error }}</div>
-              {% endfor %}
-            {% endfor %}
+          <div class="alert alert-danger small">
+            {% for field in form %}{% for e in field.errors %}<div>{{ field.label }}: {{ e }}</div>{% endfor %}{% endfor %}
+            {% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}
           </div>
           {% endif %}
 
-          <div class="alert vb-alert-warning mt-4 small">
-            <i class="bi bi-info-circle"></i> Approval rules: credit score ≥ 650, debt-to-income ratio ≤ 45%, and EMI ≤ 60% of disposable income.
+          <div class="row g-3">
+
+            <!-- Loan Type -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Loan Type</label>
+              {{ form.loan_type }}
+            </div>
+
+            <!-- Loan Amount -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Loan Amount (₹)</label>
+              {{ form.loan_amount }}
+            </div>
+
+            <!-- Tenure in years (we convert to months for the model) -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Tenure (Years)</label>
+              <input type="text" class="form-control" id="tenureYears"
+                     name="tenure_years" inputmode="numeric" autocomplete="off" placeholder="e.g. 5">
+              <!-- Hidden months field sent to model -->
+              <input type="hidden" name="tenure_months" id="tenureMonths">
+              <div class="form-text">Enter years — converted to months automatically.</div>
+            </div>
+
+            <!-- Credit Score -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Credit Score</label>
+              {{ form.credit_score }}
+              <div class="form-text" id="scoreHint"></div>
+            </div>
+
+            <!-- Monthly Salary -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Monthly Salary (₹)</label>
+              {{ form.monthly_salary }}
+            </div>
+
+            <!-- Monthly Expenses -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Monthly Expenses (₹)</label>
+              {{ form.monthly_expenses }}
+            </div>
+
+            <!-- Existing EMI (optional) -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Existing EMI per month (₹) <span class="text-muted fw-normal">(0 if none)</span></label>
+              {{ form.existing_emi }}
+            </div>
+
+            <!-- Optional custom interest rate -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">
+                Interest Rate (% p.a.)
+                <span class="text-muted fw-normal small">— optional, overrides default</span>
+              </label>
+              {{ form.interest_rate }}
+              <div class="form-text" id="defaultRateHint">Default for selected loan type will be used.</div>
+            </div>
+
+          </div><!-- /row -->
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="button" class="btn btn-outline-primary px-4" onclick="checkEligibility()">
+              <i class="bi bi-calculator"></i> Check Eligibility
+            </button>
+            <button type="submit" class="btn vb-btn-primary px-4" id="submitBtn" disabled>
+              <i class="bi bi-send"></i> Submit Application
+            </button>
           </div>
 
-          <!-- Eligibility Preview Button -->
-          <button type="button" class="btn vb-btn-outline w-100 py-2 mt-2" data-bs-toggle="modal" data-bs-target="#loanPreview">
-            Preview Eligibility
-          </button>
-
-          <!-- Submit Button -->
-          <button type="submit" class="btn vb-btn-primary w-100 py-2 mt-2">Check Eligibility &amp; Apply</button>
         </form>
+        <script>
+        // Safety net: ensure tenure_months hidden field is always populated on submit
+        document.getElementById('loanForm').addEventListener('submit', function () {
+          const yrs = document.getElementById('tenureYears').value.trim();
+          const mths = document.getElementById('tenureMonths');
+          if (!mths.value && yrs) {
+            mths.value = parseInt(yrs) * 12;
+          }
+        });
+        </script>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- Loan Preview Modal -->
-<div class="modal fade" id="loanPreview" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Loan Eligibility Preview</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <!-- RIGHT: Live Preview Card -->
+    <div class="col-lg-5">
+      <div class="vb-card p-4" id="previewCard" style="display:none;">
+        <h6 class="fw-semibold mb-3"><i class="bi bi-bar-chart-line"></i> Loan Summary</h6>
+
+        <!-- Eligibility Banner -->
+        <div id="eligibleBanner" class="alert d-flex align-items-center gap-2 mb-3">
+          <i class="bi fs-4" id="eligibleIcon"></i>
+          <div>
+            <div class="fw-semibold" id="eligibleTitle"></div>
+            <div class="small" id="eligibleSub"></div>
+          </div>
+        </div>
+
+        <!-- Summary Table -->
+        <table class="table table-sm mb-3">
+          <tbody>
+            <tr><td class="text-muted">Loan Type</td><td class="fw-semibold" id="rLoanType">—</td></tr>
+            <tr><td class="text-muted">Principal Amount</td><td class="fw-semibold" id="rPrincipal">—</td></tr>
+            <tr><td class="text-muted">Interest Rate</td><td class="fw-semibold" id="rRate">—</td></tr>
+            <tr><td class="text-muted">Tenure</td><td class="fw-semibold" id="rTenure">—</td></tr>
+            <tr><td class="text-muted">Monthly EMI</td><td class="fw-semibold text-primary fs-6" id="rEmi">—</td></tr>
+            <tr><td class="text-muted">Total Interest</td><td class="fw-semibold text-danger" id="rInterest">—</td></tr>
+            <tr class="table-light"><td class="fw-semibold">Total Payable</td><td class="fw-bold" id="rTotal">—</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Income check -->
+        <div class="small text-muted">
+          <div class="d-flex justify-content-between"><span>Monthly Salary</span><span id="rSalary">—</span></div>
+          <div class="d-flex justify-content-between"><span>Monthly Expenses</span><span id="rExpenses">—</span></div>
+          <div class="d-flex justify-content-between"><span>Available after expenses</span><span id="rDisposable" class="fw-semibold">—</span></div>
+          <div class="d-flex justify-content-between mt-1"><span>EMI vs Available</span><span id="rEmiPct" class="fw-semibold">—</span></div>
+        </div>
+
+        <hr>
+        <div class="small text-muted" id="reasonBlock" style="display:none;">
+          <strong>Reason:</strong> <span id="reasonText"></span>
+        </div>
       </div>
-      <div class="modal-body">
-        <p><strong>Estimated EMI:</strong> <span id="previewEmi">—</span></p>
-        <p><strong>Debt-to-Income Ratio:</strong> <span id="previewDti">—</span>%</p>
-        <p><strong>Approval Chance:</strong> <span id="previewStatus">—</span></p>
+
+      <!-- Tip when card not shown yet -->
+      <div id="tipBlock" class="alert alert-info small">
+        <i class="bi bi-lightbulb"></i>
+        Fill in the form and click <strong>Check Eligibility</strong> to see your loan breakdown instantly.
       </div>
     </div>
+
   </div>
 </div>
 
 <script>
-function calculateEMI(principal, rate, tenure) {
-  let monthlyRate = rate / 12 / 100;
-  if (monthlyRate === 0) return (principal / tenure).toFixed(2);
-  let emi = principal * monthlyRate * Math.pow(1+monthlyRate, tenure) /
-            (Math.pow(1+monthlyRate, tenure) - 1);
-  return emi.toFixed(2);
+const RATES = { PERSONAL: 12.5, HOME: 8.5, CAR: 9.5, EDUCATION: 10.0 };
+const RATE_LABELS = { PERSONAL: 'Personal Loan', HOME: 'Home Loan', CAR: 'Car Loan', EDUCATION: 'Education Loan' };
+
+// Sync tenure years → months hidden field (plain text field, digits only)
+document.getElementById('tenureYears').addEventListener('input', function () {
+  this.value = this.value.replace(/\D/g, '');
+  const months = this.value ? parseInt(this.value) * 12 : '';
+  document.getElementById('tenureMonths').value = months;
+});
+
+// Credit score hint
+document.getElementById('id_credit_score').addEventListener('input', function () {
+  const s = parseInt(this.value) || 0;
+  const hint = document.getElementById('scoreHint');
+  if (s >= 750)      hint.textContent = '✓ Excellent — best rates';
+  else if (s >= 650) hint.textContent = '✓ Good — eligible';
+  else if (s >= 500) hint.textContent = '⚠ Fair — may be rejected';
+  else               hint.textContent = '✗ Poor — likely rejected';
+  hint.style.color = s >= 650 ? 'green' : s >= 500 ? 'orange' : 'red';
+});
+
+function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+
+function calcEMI(p, annualRate, months) {
+  const r = annualRate / 12 / 100;
+  if (!r) return p / months;
+  return p * r * Math.pow(1 + r, months) / (Math.pow(1 + r, months) - 1);
 }
 
-document.querySelector('[data-bs-target="#loanPreview"]').addEventListener('click', function() {
-  let salary = parseFloat(document.getElementById("id_monthly_salary").value) || 0;
-  let expenses = parseFloat(document.getElementById("id_monthly_expenses").value) || 0;
-  let existingEmi = parseFloat(document.getElementById("id_existing_emi").value) || 0;
-  let loanAmount = parseFloat(document.getElementById("id_loan_amount").value) || 0;
-  let tenure = parseInt(document.getElementById("id_tenure_months").value) || 0;
-  let creditScore = parseInt(document.getElementById("id_credit_score").value) || 0;
-
-  // Default interest rate (approximate)
-  let rate = 10.0;
-
-  let emi = calculateEMI(loanAmount, rate, tenure);
-  let dti = ((expenses + existingEmi + parseFloat(emi)) / (salary || 1)) * 100;
-
-  document.getElementById("previewStatus").innerText = status;
+// Update default rate hint when loan type changes
+document.getElementById('id_loan_type').addEventListener('change', function () {
+  const defaults = { PERSONAL: 12.5, HOME: 8.5, CAR: 9.5, EDUCATION: 10.0 };
+  if (!this.value) {
+    document.getElementById('defaultRateHint').textContent = 'Select a loan type to see the default rate.';
+    return;
+  }
+  const r = defaults[this.value] || 12.5;
+  document.getElementById('defaultRateHint').textContent =
+    `Default for ${this.options[this.selectedIndex].text}: ${r}% p.a.`;
 });
+
+function checkEligibility() {
+  const loanType   = document.getElementById('id_loan_type').value;
+  if (!loanType) { alert('Please select a loan type first.'); return; }     
+  const amount     = parseFloat(document.getElementById('id_loan_amount').value)      || 0;
+  const months     = parseInt(document.getElementById('tenureMonths').value)          || 0;
+  const score      = parseInt(document.getElementById('id_credit_score').value)       || 0;
+  const salary     = parseFloat(document.getElementById('id_monthly_salary').value)   || 0;
+  const expenses   = parseFloat(document.getElementById('id_monthly_expenses').value) || 0;
+  const existEmi   = parseFloat(document.getElementById('id_existing_emi').value)     || 0;
+  const customRate = parseFloat(document.getElementById('id_interest_rate').value);
+
+  if (!amount || !months || !salary) {
+    alert('Please fill in Loan Amount, Tenure, and Monthly Salary first.');
+    return;
+  }
+
+  const rate     = (!isNaN(customRate) && customRate > 0) ? customRate : (RATES[loanType] || 12.5);
+  const emi      = calcEMI(amount, rate, months);
+  const totalPay = emi * months;
+  const totalInt = totalPay - amount;
+  const disposable = salary - expenses - existEmi;
+  const emiPct   = disposable > 0 ? (emi / disposable * 100) : 999;
+  const years    = months / 12;
+
+  // Eligibility rules — credit score + income (no DTI check)
+  const reasons = [];
+  if (score < 650)            reasons.push('Credit score below 650');
+  if (disposable <= 0)        reasons.push('Expenses exceed salary');
+  else if (emi > disposable * 0.6) reasons.push('EMI exceeds 60% of income available after expenses');
+
+  const eligible = reasons.length === 0;
+
+  // Fill summary table
+  document.getElementById('rLoanType').textContent  = RATE_LABELS[loanType];
+  document.getElementById('rPrincipal').textContent = fmt(amount);
+  document.getElementById('rRate').textContent      = rate + '% p.a.';
+  document.getElementById('rTenure').textContent    = years + (years === 1 ? ' year' : ' years') + ' (' + months + ' months)';
+  document.getElementById('rEmi').textContent       = fmt(emi) + ' / month';
+  document.getElementById('rInterest').textContent  = fmt(totalInt);
+  document.getElementById('rTotal').textContent     = fmt(totalPay);
+  document.getElementById('rSalary').textContent    = fmt(salary);
+  document.getElementById('rExpenses').textContent  = fmt(expenses + existEmi);
+  document.getElementById('rDisposable').textContent = fmt(disposable);
+  document.getElementById('rEmiPct').textContent    = emiPct.toFixed(1) + '% of available income';
+  document.getElementById('rEmiPct').style.color    = emiPct <= 60 ? 'green' : 'red';
+
+  // Banner
+  const banner = document.getElementById('eligibleBanner');
+  const icon   = document.getElementById('eligibleIcon');
+  banner.className = 'alert d-flex align-items-center gap-2 mb-3 ' + (eligible ? 'alert-success' : 'alert-danger');
+  icon.className   = 'bi fs-4 ' + (eligible ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger');
+  document.getElementById('eligibleTitle').textContent = eligible ? '✓ You are eligible' : '✗ Not eligible';
+  document.getElementById('eligibleSub').textContent   = eligible
+    ? 'Your application is likely to be approved.'
+    : 'See reason below.';
+
+  if (reasons.length) {
+    document.getElementById('reasonText').textContent = reasons.join('; ');
+    document.getElementById('reasonBlock').style.display = 'block';
+  } else {
+    document.getElementById('reasonBlock').style.display = 'none';
+  }
+
+  // Show card, hide tip
+  document.getElementById('previewCard').style.display = 'block';
+  document.getElementById('tipBlock').style.display    = 'none';
+
+  // Only enable submit if eligible
+  document.getElementById('submitBtn').disabled = !eligible;
+  if (!eligible) {
+    document.getElementById('submitBtn').title = 'Fix the issues above before submitting';
+  }
+}
 </script>
 {% endblock %}

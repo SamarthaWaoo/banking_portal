@@ -51,19 +51,21 @@ def dashboard_view(request):
 
     # ── Failed transactions that haven't been resolved yet ──────────────
     unresolved_failed = transactions_qs.filter(status='FAILED', resolved=False)[:25]
+    resolved_failed   = transactions_qs.filter(status='FAILED', resolved=True).order_by('-timestamp')[:10]
 
     return render(request, "admin_dashboard/dashboard.html", {
-        "users":            users,
-        "accounts":         accounts,
-        "transactions":     transactions,
-        "loans":            loans,
-        "flagged_count":    flagged_count,
-        "success_count":    success_count,
-        "failed_count":     failed_count,
-        "today_volume":     today_volume,
-        "total_balance":    total_balance,
-        "audit_logs":       audit_logs,
+        "users":             users,
+        "accounts":          accounts,
+        "transactions":      transactions,
+        "loans":             loans,
+        "flagged_count":     flagged_count,
+        "success_count":     success_count,
+        "failed_count":      failed_count,
+        "today_volume":      today_volume,
+        "total_balance":     total_balance,
+        "audit_logs":        audit_logs,
         "unresolved_failed": unresolved_failed,
+        "resolved_failed":   resolved_failed,
     })
 
 
