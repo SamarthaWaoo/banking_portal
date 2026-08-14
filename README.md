@@ -20,29 +20,48 @@ Hosting Platform: Render (Free Tier)
 ### Landing Page
 ![Landing Page](screenshots/01-landing-page.png)
 
-### Login
-![Login](screenshots/02-login.png)
-
-### Create Account (Simulated KYC)
-![Create Account](screenshots/03-create-account.png)
-
-### Set Transaction PIN
-![Set Transaction PIN](screenshots/04-set-transaction-pin.png)
+### Registration Page
+![Registration Page](screenshots/03-customer-registration-page.png)
 
 ### Dashboard
-![Dashboard](screenshots/05-dashboard.png)
+![Dashboard](screenshots/04-customer-dashboard.png)
 
-### Send Money (UPI Transfer)
-![Send Money](screenshots/06-send-money.png)
-
-### Loan Application & Eligibility Check
-![Loan Application](screenshots/07-loan-application.png)
-
-### My Loan Applications
-![My Loan Applications](screenshots/08-my-loan-applications.png)
+### Send Money
+![Send Money](screenshots/05-send-money.png)
 
 ### Transaction History
-![Transaction History](screenshots/09-transaction-history.png)
+![Transaction History](screenshots/06-transaction-history.png)
+
+### Loan Application
+![Loan Application](screenshots/07-loan-application.png)
+
+### Loan Submitted
+![Loan Submitted](screenshots/08-loan-submitted.png)
+
+### My Loans
+![My Loans](screenshots/09-my-loans.png)
+
+### Admin Registration
+![Admin Registration](screenshots/02-admin-registration.png)
+
+### Customer Profile
+![Customer Profile](screenshots/10-customer-profile.png)
+
+### Admin Login
+![Admin Login](screenshots/11-admin-login.png)
+
+### Admin Dashboard
+![Admin Dashboard](screenshots/12-admin-dashboard.png)
+
+### Accounts Tab
+![Accounts Tab](screenshots/13-accounts-tab.png)
+
+### Transactions Tab
+![Transactions Tab](screenshots/15-transactions-tab.png)
+
+### Loans Tab
+![Loans Tab](screenshots/14-loans-tab.png)
+
 
 ---
 
