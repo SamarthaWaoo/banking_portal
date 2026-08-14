@@ -176,3 +176,7 @@ You can log into the live deployment instantly using the pre-seeded demo account
 * **Password:** `DemoPassword123!`
 
 Covers: EMI calculation accuracy,approval/rejection logic, atomic money transfer, insufficient-balance handling, wrong-PIN blocking, and daily-limit enforcement.
+
+*Built for educational, portfolio, and interview demonstration purposes.*
+ 
+*If you found this useful, consider giving it a ⭐ on GitHub!*
