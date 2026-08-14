@@ -57,10 +57,10 @@ Hosting Platform: Render (Free Tier)
 ![Accounts Tab](screenshots/13-accounts-tab.png)
 
 ### Transactions Tab
-![Transactions Tab](screenshots/14-transactions-tab.png)
+![Transactions Tab](screenshots/15-transactions-tab.png)
 
 ### Loans Tab
-![Loans Tab](screenshots/15-loans-tab.png)
+![Loans Tab](screenshots/14-loans-tab.png)
 
 
 ---
