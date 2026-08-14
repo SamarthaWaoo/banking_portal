@@ -42,25 +42,25 @@ Hosting Platform: Render (Free Tier)
 ![My Loans](screenshots/09-my-loans.png)
 
 ### Admin Registration
-![Admin Registration](screenshots/10-admin-registration.png)
+![Admin Registration](screenshots/02-admin-registration.png)
 
 ### Customer Profile
-![Customer Profile](screenshots/11-customer-profile.png)
+![Customer Profile](screenshots/10-customer-profile.png)
 
 ### Admin Login
-![Admin Login](screenshots/12-admin-login.png)
+![Admin Login](screenshots/11-admin-login.png)
 
 ### Admin Dashboard
-![Admin Dashboard](screenshots/13-admin-dashboard.png)
+![Admin Dashboard](screenshots/12-admin-dashboard.png)
 
 ### Accounts Tab
-![Accounts Tab](screenshots/14-accounts-tab.png)
+![Accounts Tab](screenshots/13-accounts-tab.png)
 
 ### Transactions Tab
-![Transactions Tab](screenshots/15-transactions-tab.png)
+![Transactions Tab](screenshots/14-transactions-tab.png)
 
 ### Loans Tab
-![Loans Tab](screenshots/16-loans-tab.png)
+![Loans Tab](screenshots/15-loans-tab.png)
 
 
 ---
