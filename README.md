@@ -21,10 +21,10 @@ Hosting Platform: Render (Free Tier)
 ![Landing Page](screenshots/01-landing-page.png)
 
 ### Registration Page
-![Registration Page](screenshots/03-registration-page.png)
+![Registration Page](screenshots/03-customer-registration-page.png)
 
 ### Dashboard
-![Dashboard](screenshots/04-dashboard.png)
+![Dashboard](screenshots/04-customer-dashboard.png)
 
 ### Send Money
 ![Send Money](screenshots/05-send-money.png)
