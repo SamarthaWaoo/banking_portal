@@ -58,12 +58,15 @@ Hosting Platform: Render (Free Tier)
 - Downloadable PDF account statement (via `reportlab`)
 
 ### 🏦 Loan Eligibility Module
-- Application form: salary, expenses, existing EMI, credit score, loan amount, tenure
-- EMI calculated with the standard reducing-balance formula
-- Debt-to-Income (DTI) ratio computation
-- Transparent, rule-based approval engine (not a black box — see below)
-- Full month-by-month amortization schedule for approved loans
-
+**Supported loan types:** Personal · Home · Car · Education
+ 
+**Application captures:** Monthly salary, monthly expenses, credit score, loan amount, and tenure.
+ 
+**System calculates:**
+- Interest rate based on loan type
+- Monthly EMI using the reducing-balance formula (based on salary, expenses, credit score, and interest rate)
+- Eligibility decision with a human-readable reason
+- Full month-by-month amortization schedule
 ### 🎨 General
 - Bank-themed responsive UI (navy + gold palette) built with Bootstrap 5
 - Custom user model with simulated KYC fields
@@ -122,22 +125,13 @@ Visit `http://127.0.0.1:8000/`.
 
 ---
 
-## Design Decisions & Talking Points (for interviews)
-
-- **Why SQLite, not Postgres?** Zero-config for a portfolio project; the ORM keeps the code Postgres-compatible if this ever needed to scale.
-- **Why `select_for_update()` on transfers?** Prevents two concurrent transfers from reading a stale balance and causing a lost update — a classic real-world payments bug.
-- **Why log failed transactions too?** Real banking systems need a complete audit trail, not just a record of what succeeded.
-- **Why a rule-based loan engine instead of ML?** Explainability. Every rejection comes with a specific, human-readable reason (`decision_reason`) — something a real underwriting system needs and a black-box model doesn't easily give you.
-- **PAN/Aadhaar are format-validated only** — deliberately, to avoid any dependency on paid KYC APIs while still demonstrating input validation and data modeling.
-
----
-
 ## Approval Rules (Loan Engine)
 
 A loan is **approved** only if all three hold:
-1. Credit score ≥ 650
-2. Debt-to-Income ratio (expenses + existing EMI + new EMI ÷ income) ≤ 45%
-3. New EMI ≤ 60% of disposable income (salary − expenses)
+1. **Credit score** — minimum threshold required
+2. **Monthly salary & expenses** — disposable income determines affordability
+3. **Interest rate** — determined by loan type, directly affects EMI
+4. **EMI affordability** — calculated EMI must fall within an affordable range relative to disposable income
 
 Any failing condition is returned as a specific rejection reason.
 
@@ -181,4 +175,4 @@ You can log into the live deployment instantly using the pre-seeded demo account
 * **Email:** `demo@spendsmart.com`
 * **Password:** `DemoPassword123!`
 
-Covers: EMI calculation accuracy, DTI computation, approval/rejection logic, amortization schedule correctness, atomic money transfer, insufficient-balance handling, wrong-PIN blocking, and daily-limit enforcement.
+Covers: EMI calculation accuracy,approval/rejection logic, atomic money transfer, insufficient-balance handling, wrong-PIN blocking, and daily-limit enforcement.
