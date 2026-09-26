@@ -1,101 +1,132 @@
-# SpendSmart Bank — Notification System Patch
+# SpendSmart Bank
 
-## Where each file goes
+A Django-based simulated retail banking platform — customer accounts, UPI-style
+money transfers, loans, budgeting, and a staff-facing admin console — built
+for demo/learning purposes.
 
-| File in this zip                     | Destination                                  | Type |
-|---------------------------------------|-----------------------------------------------|------|
-| admin_dashboard/models.py             | `admin_dashboard/models.py`                   | FULL REPLACE |
-| admin_dashboard/views.py              | `admin_dashboard/views.py`                    | FULL REPLACE |
-| admin_dashboard/context_processors.py | `admin_dashboard/context_processors.py`       | NEW FILE |
-| loans/views.py                        | `loans/views.py`                              | FULL REPLACE |
-| accounts/views.py                     | `accounts/views.py`                           | FULL REPLACE |
-| upi/views_PATCH.py                    | merge into `upi/views.py`                     | **PATCH ONLY — see below** |
-| upi/urls.py                           | `upi/urls.py`                                 | FULL REPLACE |
-| templates/dashboard.html              | `upi/templates/upi/dashboard.html`            | FULL REPLACE |
-| templates/base.html                   | `templates/base.html`                         | FULL REPLACE |
-| templates/my_loans.html               | `loans/templates/loans/my_loans.html`         | FULL REPLACE |
+---
 
-## ⚠️ IMPORTANT — upi/views.py is a PATCH, not a full file
+## Apps
 
-I could not see the full body of your `send_money_view` (part of it was
-truncated when I read the file), so I did **not** regenerate that function —
-doing so from a partial view risked silently corrupting your money-transfer
-logic. `upi/views_PATCH.py` contains only:
+| App               | Responsibility                                                        |
+|--------------------|------------------------------------------------------------------------|
+| `accounts`         | Registration, login, `CustomUser` model, transaction PIN handling      |
+| `upi`              | Customer dashboard, send/receive money, beneficiaries, statements      |
+| `loans`            | Loan applications, approval workflow, disbursement, EMI repayment      |
+| `admin_dashboard`  | Staff console — users, accounts, transactions, loans, audit, messaging |
 
-- `dashboard_view` (replace)
-- `add_amount_view` (replace)
-- `mark_notifications_read` (add, new)
-- the one new import line
+Shared templates (`base.html`, design tokens, components) live under
+`templates/` and `static/css/style.css`.
 
-Open your real `upi/views.py`, replace those two functions with the patched
-versions, add the import, and append the new function at the bottom. Leave
-everything else (`search_users`, `get_all_users`, `send_money_view`,
-`transaction_history_view`, `download_statement`, `add_beneficiary`,
-`remove_beneficiary`) exactly as it is.
+---
 
-## Settings change required
+## Key features
 
-In `settings.py`, add the new context processor so the top-bar bell works on
-every page:
+### Customer side
+- Register → pending account approval → admin credits requested deposit
+- Send money via UPI ID, with a transaction PIN (3 wrong attempts → 5 min lock)
+- Add Money now also requires the transaction PIN, same lockout rules as Send Money
+- Beneficiaries, transaction history, downloadable statements (incl. XBRL export)
+- Loan application, tracked through Pending → Approved/Rejected → Disbursed
+- Budgets with progress bars (ok / warning / over)
+- Top-bar notification bell — shows **all** notifications for the logged-in
+  customer with an unread-count badge; opening it marks them read
+- Dashboard itself only surfaces `is_important=True` notifications (account
+  creation, approval + credit, EMI due) in a green highlight box — the bell
+  is the full feed
+- My Loans page shows only `category='LOAN'` notifications (approved /
+  rejected / disbursed / EMI debited / EMI due) — no promo noise
 
-```python
-TEMPLATES = [
-    {
-        ...
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'admin_dashboard.context_processors.notification_count',  # ADD THIS
-            ],
-        },
-    },
-]
-```
+### Admin console
+Single-page "rail" layout — icon-only sidebar, tabbed main pane, all inside
+one bordered shell:
 
-## Migration
+- **Users** — full list, live client-side username search
+- **Accounts** — balances, freeze/unfreeze, XBRL export
+- **Pending** — approve (credits requested deposit) / reject new account
+  requests, plus a rejected-accounts log
+- **Transactions** — paginated ledger with status + flagged/resolved badges
+- **Failed** — unresolved failed transactions with a resolution-note workflow
+- **Loans** — review pending applications, disburse approved ones
+- **Messaging** — send notifications (broadcast or single customer) from
+  preset templates or a custom message; recent-notifications history
+- **Audit Log** — last 40 operations across all users
+- **Charts** — transaction status + loan status breakdowns (Chart.js)
 
-The `Notification` model gained two new fields (`category`, `is_important`).
-After copying `admin_dashboard/models.py` in:
+KPI stat strip (users / accounts / pending / loans / success / failed /
+total balance / flagged count) sits above the tab content as bordered stat
+chips.
+
+**Layout note:** the rail does *not* use `position: fixed` — something in
+the base template sets a `transform`/`filter`/`will-change` on an ancestor,
+which breaks fixed positioning. Instead `.vb-admin-shell` is a fixed-height
+flex container; the rail and the tab pane both scroll internally within it.
+
+---
+
+## Notification system
+
+`Notification` model fields: `recipient` (nullable = broadcast), `title`,
+`body`, `icon`, `category` (`ACCOUNT` / `LOAN` / `PROMO`), `is_important`,
+`created_at`, `read_at`.
+
+Preset templates (`Notification.PRESET_META`) map each messaging-tab preset
+to a category automatically — festival offers / rate updates / referral
+always land as `PROMO` and only ever show in the bell, never on the
+dashboard or Loans page.
+
+**Auto-sent from:**
+
+| Trigger                                   | Source                                      |
+|---------------------------------------------|----------------------------------------------|
+| Welcome                                    | `accounts/views.py::register_view`            |
+| Account approved + credited (important)    | `admin_dashboard/views.py::approve_account_view` |
+| Loan approved / rejected                   | `loans/views.py::approve_loan_view`            |
+| Loan disbursed                             | `loans/views.py::disburse_view`                |
+| EMI debited                                | `loans/views.py::repay_view`                   |
+
+**Not yet wired:** EMI *due-soon* reminders. `Notification.notify(...,
+'loan_due', ...)` is ready to call, but there's no scheduled job yet —
+would need a management command (e.g. `send_emi_reminders`) run via
+cron/Celery-beat, checking each `DISBURSED` loan's upcoming due date.
+
+---
+
+## Setup
 
 ```bash
-python manage.py makemigrations admin_dashboard
+pip install -r requirements.txt
+
+# settings.py must include the notification-count context processor
+# so the top-bar bell badge works on every page:
+#   admin_dashboard.context_processors.notification_count
+
+python manage.py makemigrations
 python manage.py migrate
+python manage.py createsuperuser   # or mark a user is_staff/is_admin
+python manage.py runserver
 ```
 
-Existing rows will default to `category='ACCOUNT'`, `is_important=False` —
-fine, since old notifications predate this feature.
+---
 
-## What changed, behaviorally
+## Design system
 
-1. **Add Money now asks for the transaction PIN** and verifies it against
-   `CustomUser.check_transaction_pin()` — same lockout rules as Send Money
-   (3 wrong attempts → 5 min lock).
-2. **Top-bar bell** (in `base.html`) shows ALL notifications for the logged-in
-   customer with an unread-count badge; opening it marks them read.
-3. **Customer dashboard** no longer shows the full notification feed — only
-   an `is_important=True` green box (account creation, salary/account
-   approval credit, EMI due).
-4. **Loans → My Loans page** shows only `category='LOAN'` notifications
-   (approved / rejected / disbursed / EMI debited / EMI due) — nothing
-   promotional.
-5. **Auto-sent notifications** now fire from:
-   - `accounts/views.py::register_view` → welcome
-   - `admin_dashboard/views.py::approve_account_view` → account approved + credited (important)
-   - `loans/views.py::approve_loan_view` → loan approved / rejected
-   - `loans/views.py::disburse_view` → loan disbursed
-   - `loans/views.py::repay_view` → EMI debited
-6. **Promotional/common messages** (festival offers, rate updates, referral)
-   sent by admins via the messaging tab keep `category='PROMO'` automatically
-   (via `Notification.PRESET_META`) and only ever appear in the bell — never
-   in the green box or the Loans page.
+CSS custom properties in `static/css/style.css` (`:root`) drive the whole
+UI — purple primary (`--vb-navy: #7C3AED`), enterprise off-white background,
+consistent radii/shadows/font-size scale. Three distinct shells share the
+tokens but are visually separate:
 
-## Not yet wired: "Next EMI due" reminders
+- **Public/marketing** — light navbar, gradient hero, feature cards
+- **Customer app** — dark fixed sidebar (`.vb-sidebar`) + topbar, off-canvas
+  on mobile
+- **Admin console** — dark icon rail (`.vb-admin-rail`) + KPI strip + tabs,
+  internal-scroll shell (see layout note above)
 
-There's no scheduled job in your codebase to detect upcoming due dates.
-`Notification.notify(..., 'loan_due', ...)` is ready to use — you'd call it
-from a management command (e.g. `python manage.py send_emi_reminders`) run
-via cron/Celery-beat, checking each `DISBURSED` loan's next due date. Let me
-know if you want that command written.
+---
+
+## Known limitations
+
+- EMI due-date reminders are not scheduled (see above)
+- `upi/views.py::send_money_view` was patched around, not regenerated, to
+  avoid corrupting existing transfer logic from a partially-read file —
+  worth a full review pass when convenient
