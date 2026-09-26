@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Budgets — SpendSmart Bank{% endblock %}
+{% block page_title %}<span style="display:block;font-size:0.68rem;font-weight:600;color:var(--vb-navy);text-transform:uppercase;letter-spacing:0.4px;">Budgets</span>Budgets & Spending Goals{% endblock %}
+{% block page_subtitle %}
+<span class="vb-app-topbar-subtitle">
+  Set a monthly limit per category and track it against your real transactions.
+</span>
+{% endblock %}
+{% block page_actions %}
+<a href="{% url 'upi:dashboard' %}" class="btn vb-btn-outline btn-sm">
+  <i class="bi bi-arrow-left"></i> Back to Dashboard
+</a>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+
+  <!-- Global monthly budget form -->
+  <form method="post" class="vb-budget-form mb-4">
+    {% csrf_token %}
+    <div class="input-group input-group-sm">
+      <span class="input-group-text">₹</span>
+      <input type="number" name="monthly_limit" class="form-control"
+             placeholder="Enter total monthly limit" min="1" step="1" required>
+      <button type="submit" class="btn vb-btn-primary btn-sm">Set Monthly Limit</button>
+    </div>
+  </form>
+
+  {% if has_budgets %}
+  <div class="vb-stat-row mb-4">
+    <div class="vb-stat-card">
+      <div class="lbl">Total monthly budget</div>
+      <div class="val">₹{{ total_limit|floatformat:2 }}</div>
+    </div>
+    <div class="vb-stat-card">
+      <div class="lbl">Spent so far this month</div>
+      <div class="val" style="color:var(--vb-danger);">₹{{ total_spent|floatformat:2 }}</div>
+    </div>
+    <div class="vb-stat-card">
+      <div class="lbl">Remaining</div>
+      <div class="val" style="color:var(--vb-success);">₹{{ total_remaining|floatformat:2 }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Category budgets grid -->
+  <div class="vb-budget-grid">
+    {% for row in rows %}
+    <div class="vb-budget-card">
+      <div class="vb-budget-head">
+        <span class="vb-budget-icon" style="background:{{ row.meta.color }}1A;color:{{ row.meta.color }};">
+          <i class="bi {{ row.meta.icon }}"></i>
+        </span>
+        <div class="flex-grow-1">
+          <div class="vb-budget-title">{{ row.label }}</div>
+          {% if row.budget %}
+          <div class="vb-budget-sub">₹{{ row.budget.spent_this_month|floatformat:2 }} of ₹{{ row.budget.monthly_limit|floatformat:2 }}</div>
+          {% else %}
+          <div class="vb-budget-sub text-muted">No budget set</div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if row.budget %}
+      <div class="vb-progress-track">
+        <div class="vb-progress-fill vb-progress-{{ row.budget.status_level }}"
+             style="width:{{ row.budget.percent_used }}%;"></div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center mt-1">
+        <span class="vb-budget-pct vb-progress-text-{{ row.budget.status_level }}">
+          {{ row.budget.percent_used }}% used
+        </span>
+        {% if row.budget.status_level == 'over' %}
+        <span class="vb-budget-pct" style="color:var(--vb-danger);">Over by ₹{{ row.budget.overage|floatformat:2 }}</span>
+        {% else %}
+        <span class="vb-budget-pct text-muted">₹{{ row.budget.remaining|floatformat:2 }} left</span>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="alert vb-alert-info small mt-4 mb-0">
+    <i class="bi bi-lightbulb"></i>
+    <strong>How it works:</strong> Budgets track successful money you send that's tagged with that category.
+    Pick a category when you send money to keep these numbers accurate.
+  </div>
+
+</div>
+{% endblock %}

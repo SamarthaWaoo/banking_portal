@@ -2,83 +2,139 @@
 {% block title %}Transaction History{% endblock %}
 {% block content %}
 <div class="container py-4">
-  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <h4 class="vb-section-title mb-0"><i class="bi bi-clock-history"></i> Transaction History</h4>
-    <a href="{% url 'upi:download_statement' %}" class="btn vb-btn-outline btn-sm" style="color: var(--vb-navy); border-color: var(--vb-navy);">
-      <i class="bi bi-file-earmark-arrow-down"></i> Download PDF Statement
-    </a>
-  </div>
 
-  <!-- Status Filters -->
-  <div class="mb-3 d-flex gap-2 flex-wrap">
-    <a href="?" class="btn btn-sm {% if not request.GET.status %}vb-btn-primary{% else %}vb-btn-outline text-dark border{% endif %}">All</a>
-    <a href="?status=SUCCESS" class="btn btn-sm {% if request.GET.status == 'SUCCESS' %}vb-btn-primary{% else %}vb-btn-outline text-dark border{% endif %}">Success</a>
-    <a href="?status=FAILED" class="btn btn-sm {% if request.GET.status == 'FAILED' %}vb-btn-primary{% else %}vb-btn-outline text-dark border{% endif %}">Failed</a>
-    <a href="?status=FLAGGED" class="btn btn-sm {% if request.GET.status == 'FLAGGED' %}vb-btn-primary{% else %}vb-btn-outline text-dark border{% endif %}">Flagged</a>
-  </div>
+  <div class="vb-data-card">
 
-  <!-- Transactions Table -->
-  <div class="vb-card p-0 overflow-hidden">
-    <table class="table table-vb mb-0">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Reference ID</th>
-          <th>Direction</th>
-          <th>Amount</th>
-          <th>Status</th>
-          <th>Balance After</th>
-          <th>Note</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for t in txns %}
-        <tr>
-          <td class="small">{{ t.timestamp|date:"d M Y, H:i" }}</td>
-          <td class="small">{{ t.reference_id }}</td>
-          <td class="small">
-            {% if t.sender_account.user == user %}
-              <i class="bi bi-arrow-up-circle text-danger"></i> Sent to {{ t.receiver_account.upi_id|default:"—" }}
-            {% else %}
-              <i class="bi bi-arrow-down-circle text-success"></i> From {{ t.sender_account.upi_id|default:"—" }}
-            {% endif %}
-          </td>
-          <td class="fw-semibold small">₹{{ t.amount }}</td>
-          <td>
-            <span class="vb-badge badge-status-{{ t.status }}">{{ t.status }}</span>
-            {% if t.is_flagged %}
-              <span class="badge bg-warning text-dark ms-1">Flagged</span>
-            {% endif %}
-          </td>
-          <td class="small">
-            {% if t.sender_account.user == user %}
-              ₹{{ t.sender_balance_after|default:"—" }}
-            {% else %}
-              ₹{{ t.receiver_balance_after|default:"—" }}
-            {% endif %}
-          </td>
-          <td class="small text-muted">
-            {{ t.note|default:"—" }}
-            {% if t.failure_reason %}
-              <br><span class="text-danger"><i class="bi bi-exclamation-circle"></i> {{ t.failure_reason }}</span>
-            {% endif %}
-            {% if t.resolved and t.resolution_note %}
-              <br><span class="text-success"><i class="bi bi-shield-check"></i> <strong>Admin:</strong> {{ t.resolution_note }}</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if t.sender_account.user == user and t.receiver_account %}
-              <a href="{% url 'upi:send_money' %}?receiver={{ t.receiver_account.upi_id }}" 
-                 class="btn btn-sm vb-btn-outline">Send Again</a>
-            {% endif %}
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="8" class="text-center text-muted py-4">No transactions found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <!-- Header -->
+    <div class="head">
+      <span class="title">Transaction History</span>
+      <a href="{% url 'upi:download_xbrl_statement' %}" class="btn btn-sm" style="border:1px solid var(--vb-navy);color:var(--vb-navy);">
+        <i class="bi bi-file-earmark-code"></i> Download XBRL Statement
+      </a>
+    </div>
+
+    <!-- Summary strip -->
+    {% regroup txns|dictsort:"status" by status as status_groups %}
+    {% regroup txns|dictsort:"is_flagged" by is_flagged as flag_groups %}
+    <div class="p-3" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;border-bottom:1px solid #F3F4F6;">
+      <div style="background:#F3E8FF;border-radius:8px;padding:0.6rem;text-align:center;">
+        <div class="fw-bold" style="font-size:1.1rem;color:var(--vb-navy);">{{ txns|length }}</div>
+        <div class="text-muted" style="font-size:0.72rem;">Total shown</div>
+      </div>
+      <div style="background:#F0FDF4;border-radius:8px;padding:0.6rem;text-align:center;">
+        <div class="fw-bold" style="font-size:1.1rem;color:var(--vb-success);">
+          {% for group in status_groups %}{% if group.grouper == 'SUCCESS' %}{{ group.list|length }}{% endif %}{% endfor %}
+        </div>
+        <div class="text-muted" style="font-size:0.72rem;">Successful</div>
+      </div>
+      <div style="background:#FEF2F2;border-radius:8px;padding:0.6rem;text-align:center;">
+        <div class="fw-bold" style="font-size:1.1rem;color:var(--vb-danger);">
+          {% for group in status_groups %}{% if group.grouper == 'FAILED' %}{{ group.list|length }}{% endif %}{% endfor %}
+        </div>
+        <div class="text-muted" style="font-size:0.72rem;">Failed</div>
+      </div>
+      <div style="background:#FFFBEB;border-radius:8px;padding:0.6rem;text-align:center;">
+        <div class="fw-bold" style="font-size:1.1rem;color:var(--vb-warning);">
+          {% for group in flag_groups %}{% if group.grouper %}{{ group.list|length }}{% endif %}{% endfor %}
+        </div>
+        <div class="text-muted" style="font-size:0.72rem;">Flagged</div>
+      </div>
+    </div>
+
+    <!-- Body: sidebar filters + table -->
+    <div class="d-flex flex-column flex-md-row">
+
+      <!-- Sidebar filters -->
+      <div style="width:100%;max-width:180px;background:#FAF7FF;border-right:1px solid #F3E8FF;padding:1rem 0.85rem;flex-shrink:0;">
+        <div style="font-size:0.7rem;font-weight:600;color:var(--vb-navy);letter-spacing:0.4px;margin-bottom:0.6rem;">FILTER BY STATUS</div>
+        <a href="?" class="d-block text-decoration-none mb-2 py-2 px-2 rounded"
+           style="font-size:0.85rem; {% if not request.GET.status %}background:var(--vb-navy);color:#fff;{% else %}color:#374151;{% endif %}">
+          All
+        </a>
+        <a href="?status=SUCCESS" class="d-block text-decoration-none mb-2 py-2 px-2 rounded"
+           style="font-size:0.85rem; {% if request.GET.status == 'SUCCESS' %}background:var(--vb-navy);color:#fff;{% else %}color:#374151;{% endif %}">
+          Success
+        </a>
+        <a href="?status=FAILED" class="d-block text-decoration-none mb-2 py-2 px-2 rounded"
+           style="font-size:0.85rem; {% if request.GET.status == 'FAILED' %}background:var(--vb-navy);color:#fff;{% else %}color:#374151;{% endif %}">
+          Failed
+        </a>
+        <a href="?status=FLAGGED" class="d-block text-decoration-none py-2 px-2 rounded"
+           style="font-size:0.85rem; {% if request.GET.status == 'FLAGGED' %}background:var(--vb-navy);color:#fff;{% else %}color:#374151;{% endif %}">
+          Flagged
+        </a>
+      </div>
+
+      <!-- Table -->
+      <div class="flex-grow-1" style="overflow-x:auto;">
+        <table class="vb-table-dense mb-0">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Reference ID</th>
+              <th>Direction</th>
+              <th>Category</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Balance After</th>
+              <th>Note</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in txns %}
+            <tr>
+              <td class="text-muted">{{ t.timestamp|date:"d M Y, H:i" }}</td>
+              <td class="text-muted">{{ t.reference_id }}</td>
+              <td>
+                {% if t.sender_account.user == user %}
+                  <i class="bi bi-arrow-up-circle text-danger"></i> Sent to {{ t.receiver_account.upi_id|default:"—" }}
+                {% else %}
+                  <i class="bi bi-arrow-down-circle text-success"></i> From {{ t.sender_account.upi_id|default:"—" }}
+                {% endif %}
+              </td>
+              <td>
+                <span class="vb-cat-chip" style="color:{{ t.category_color }};background:{{ t.category_color }}1A;">
+                  <i class="bi {{ t.category_icon }}"></i> {{ t.get_category_display }}
+                </span>
+              </td>
+              <td class="fw-semibold">₹{{ t.amount }}</td>
+              <td>
+                <span class="vb-badge badge-status-{{ t.status }}">{{ t.status }}</span>
+                {% if t.is_flagged %}<span class="badge bg-warning text-dark ms-1">Flagged</span>{% endif %}
+              </td>
+              <td class="text-muted">
+                {% if t.sender_account.user == user %}
+                  ₹{{ t.sender_balance_after|default:"—" }}
+                {% else %}
+                  ₹{{ t.receiver_balance_after|default:"—" }}
+                {% endif %}
+              </td>
+              <td class="text-muted">
+                {{ t.note|default:"—" }}
+                {% if t.failure_reason %}<br><span class="text-danger">{{ t.failure_reason }}</span>{% endif %}
+              </td>
+              <td class="d-flex gap-1 flex-wrap">
+                {% if t.status == 'SUCCESS' %}
+                  <a href="{% url 'upi:transaction_receipt' t.id %}"
+                     class="btn btn-sm vb-btn-outline" title="Download receipt">
+                    <i class="bi bi-receipt"></i>
+                  </a>
+                {% endif %}
+                {% if t.sender_account.user == user and t.receiver_account %}
+                  <a href="{% url 'upi:send_money' %}?receiver={{ t.receiver_account.upi_id }}"
+                     class="btn btn-sm vb-btn-outline">Send Again</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="9" class="text-center text-muted py-4">No transactions found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
   </div>
 </div>
 {% endblock %}

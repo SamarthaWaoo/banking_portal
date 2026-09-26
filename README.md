@@ -1,201 +1,101 @@
-# SpendSmart Bank — Digital Banking Suite
+# SpendSmart Bank — Notification System Patch
 
-A full-stack simulated digital banking platform built with **Django, SQLite, and Bootstrap 5**, combining a **UPI-style payments module** and a **loan eligibility & management module** under one bank-themed website.
+## Where each file goes
 
-Built as a portfolio project to demonstrate backend, database, and business-logic skills relevant to fintech/banking software roles.
+| File in this zip                     | Destination                                  | Type |
+|---------------------------------------|-----------------------------------------------|------|
+| admin_dashboard/models.py             | `admin_dashboard/models.py`                   | FULL REPLACE |
+| admin_dashboard/views.py              | `admin_dashboard/views.py`                    | FULL REPLACE |
+| admin_dashboard/context_processors.py | `admin_dashboard/context_processors.py`       | NEW FILE |
+| loans/views.py                        | `loans/views.py`                              | FULL REPLACE |
+| accounts/views.py                     | `accounts/views.py`                           | FULL REPLACE |
+| upi/views_PATCH.py                    | merge into `upi/views.py`                     | **PATCH ONLY — see below** |
+| upi/urls.py                           | `upi/urls.py`                                 | FULL REPLACE |
+| templates/dashboard.html              | `upi/templates/upi/dashboard.html`            | FULL REPLACE |
+| templates/base.html                   | `templates/base.html`                         | FULL REPLACE |
+| templates/my_loans.html               | `loans/templates/loans/my_loans.html`         | FULL REPLACE |
 
-> ⚠️ **This is a simulation.** No real money, banks, or KYC providers are involved. PAN/Aadhaar fields are validated by format (regex) only.
+## ⚠️ IMPORTANT — upi/views.py is a PATCH, not a full file
 
----
-🌐 Live Demo
+I could not see the full body of your `send_money_view` (part of it was
+truncated when I read the file), so I did **not** regenerate that function —
+doing so from a partial view risked silently corrupting your money-transfer
+logic. `upi/views_PATCH.py` contains only:
 
-Live Application: https://banking-portal-2l0j.onrender.com
+- `dashboard_view` (replace)
+- `add_amount_view` (replace)
+- `mark_notifications_read` (add, new)
+- the one new import line
 
-Hosting Platform: Render (Free Tier)
+Open your real `upi/views.py`, replace those two functions with the patched
+versions, add the import, and append the new function at the bottom. Leave
+everything else (`search_users`, `get_all_users`, `send_money_view`,
+`transaction_history_view`, `download_statement`, `add_beneficiary`,
+`remove_beneficiary`) exactly as it is.
 
-----
+## Settings change required
 
-## 📸 Screenshots
+In `settings.py`, add the new context processor so the top-bar bell works on
+every page:
 
-### Landing Page
-![Landing Page](screenshots/01-landing-page.png)
+```python
+TEMPLATES = [
+    {
+        ...
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+                'admin_dashboard.context_processors.notification_count',  # ADD THIS
+            ],
+        },
+    },
+]
+```
 
-### Registration Page
-![Registration Page](screenshots/03-customer-registration-page.png)
+## Migration
 
-### Dashboard
-![Dashboard](screenshots/04-customer-dashboard.png)
-
-### Send Money
-![Send Money](screenshots/05-send-money.png)
-
-### Transaction History
-![Transaction History](screenshots/06-transaction-history.png)
-
-### Loan Application
-![Loan Application](screenshots/07-loan-application.png)
-
-### Loan Submitted
-![Loan Submitted](screenshots/08-loan-submitted.png)
-
-### My Loans
-![My Loans](screenshots/09-my-loans.png)
-
-### Admin Registration
-![Admin Registration](screenshots/02-admin-registration.png)
-
-### Customer Profile
-![Customer Profile](screenshots/10-customer-profile.png)
-
-### Admin Login
-![Admin Login](screenshots/11-admin-login.png)
-
-### Admin Dashboard
-![Admin Dashboard](screenshots/12-admin-dashboard.png)
-
-### Accounts Tab
-![Accounts Tab](screenshots/13-accounts-tab.png)
-
-### Transactions Tab
-![Transactions Tab](screenshots/15-transactions-tab.png)
-
-### Loans Tab
-![Loans Tab](screenshots/14-loans-tab.png)
-
-
----
-
-## Features
-
-### 💳 UPI Payments Module
-- Auto-generated bank account + UPI ID on signup
-- Send/receive money between accounts, protected by a 4-digit transaction PIN
-- **Atomic, race-condition-safe transfers** using `transaction.atomic()` + `select_for_update()`
-- Daily transfer limit enforcement
-- Full transaction history with status filters (Success/Failed)
-- Every failed attempt is logged too — a real audit trail, not just successes
-- Downloadable PDF account statement (via `reportlab`)
-
-### 🏦 Loan Eligibility Module
-**Supported loan types:** Personal · Home · Car · Education
- 
-**Application captures:** Monthly salary, monthly expenses, credit score, loan amount, and tenure.
- 
-**System calculates:**
-- Interest rate based on loan type
-- Monthly EMI using the reducing-balance formula (based on salary, expenses, credit score, and interest rate)
-- Eligibility decision with a human-readable reason
-- Full month-by-month amortization schedule
-### 🎨 General
-- Bank-themed responsive UI (navy + gold palette) built with Bootstrap 5
-- Custom user model with simulated KYC fields
-- Django Admin customized for "bank operations" use
-- Unit tests covering EMI/DTI math and transfer edge cases
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Backend | Django 6 |
-| Database | SQLite (dev) |
-| Frontend | Django Templates + Bootstrap 5 + Bootstrap Icons |
-| PDF generation | ReportLab |
-| Static files | WhiteNoise |
-| Deployment | Render (free tier) + Gunicorn |
-
----
-
-## Local Setup
+The `Notification` model gained two new fields (`category`, `is_important`).
+After copying `admin_dashboard/models.py` in:
 
 ```bash
-git clone <your-repo-url>
-cd banksuite
-
-python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
-
-pip install -r requirements.txt
-
+python manage.py makemigrations admin_dashboard
 python manage.py migrate
-python manage.py createsuperuser   # optional, for /admin/
-python manage.py runserver
 ```
 
-Visit `http://127.0.0.1:8000/`.
+Existing rows will default to `category='ACCOUNT'`, `is_important=False` —
+fine, since old notifications predate this feature.
 
----
+## What changed, behaviorally
 
-## Deployment (Render, free tier)
+1. **Add Money now asks for the transaction PIN** and verifies it against
+   `CustomUser.check_transaction_pin()` — same lockout rules as Send Money
+   (3 wrong attempts → 5 min lock).
+2. **Top-bar bell** (in `base.html`) shows ALL notifications for the logged-in
+   customer with an unread-count badge; opening it marks them read.
+3. **Customer dashboard** no longer shows the full notification feed — only
+   an `is_important=True` green box (account creation, salary/account
+   approval credit, EMI due).
+4. **Loans → My Loans page** shows only `category='LOAN'` notifications
+   (approved / rejected / disbursed / EMI debited / EMI due) — nothing
+   promotional.
+5. **Auto-sent notifications** now fire from:
+   - `accounts/views.py::register_view` → welcome
+   - `admin_dashboard/views.py::approve_account_view` → account approved + credited (important)
+   - `loans/views.py::approve_loan_view` → loan approved / rejected
+   - `loans/views.py::disburse_view` → loan disbursed
+   - `loans/views.py::repay_view` → EMI debited
+6. **Promotional/common messages** (festival offers, rate updates, referral)
+   sent by admins via the messaging tab keep `category='PROMO'` automatically
+   (via `Notification.PRESET_META`) and only ever appear in the bell — never
+   in the green box or the Loans page.
 
-1. Push this repo to GitHub.
-2. On [Render](https://render.com), create a **New Web Service** → connect your GitHub repo.
-3. Set:
-   - **Build Command:** `./build.sh`
-   - **Start Command:** `gunicorn banksuite.wsgi:application`
-4. Add environment variables (Render dashboard → Environment):
-   - `SECRET_KEY` — any long random string
-   - `DEBUG` — `False`
-   - `ALLOWED_HOSTS` — `<your-app>.onrender.com`
-5. Deploy. Render auto-builds on every push to your main branch.
+## Not yet wired: "Next EMI due" reminders
 
-**Note on SQLite persistence:** Render's free web services use an ephemeral filesystem, so `db.sqlite3` resets on redeploy/restart. For a portfolio demo this is usually fine — for a persistent demo, attach Render's free persistent disk, or switch `DATABASES` to Render's free PostgreSQL instance (the model layer is already ORM-based, so this is a config-only change).
-
----
-
-## Approval Rules (Loan Engine)
-
-A loan is **approved** only if all three hold:
-1. **Credit score** — minimum threshold required
-2. **Monthly salary & expenses** — disposable income determines affordability
-3. **Interest rate** — determined by loan type, directly affects EMI
-4. **EMI affordability** — calculated EMI must fall within an affordable range relative to disposable income
-
-Any failing condition is returned as a specific rejection reason.
-
----
-
-## Future Work
-
-These were scoped out to keep the project focused, but are natural next steps:
-- QR code generation for "receive money" (`qrcode` library — no external API needed)
-- Two-factor authentication (email OTP)
-- Fraud detection: velocity checks, odd-hour flags, anomaly scoring on transactions
-- Simple ML-based credit scoring (logistic regression) as an alternative to the rule engine
-- Migrating to PostgreSQL + persistent disk for production use
-
----
-
-## Project Structure
-
-```
-banksuite/
-├── accounts/       # Custom user model, registration, login, PIN, profile
-├── upi/            # Bank accounts, transactions, send money, PDF statement
-├── loans/          # Loan applications, EMI/DTI engine, amortization
-├── templates/       # Bank-themed HTML (base, landing, accounts/, upi/, loans/)
-├── static/css/      # Custom theme (navy + gold banking palette)
-├── banksuite/       # Project settings, urls
-├── build.sh          # Render build script
-├── Procfile           # Gunicorn start command
-└── requirements.txt
-```
-
-## Running Tests
-
-```bash
-python manage.py test
-
-```
-
-## 🚀 Quick Demo Access
-You can log into the live deployment instantly using the pre-seeded demo account:
-* **Email:** `demo@spendsmart.com`
-* **Password:** `DemoPassword123!`
-
-Covers: EMI calculation accuracy,approval/rejection logic, atomic money transfer, insufficient-balance handling, wrong-PIN blocking, and daily-limit enforcement.
-
-*Built for educational, portfolio, and interview demonstration purposes.*
- 
-*If you found this useful, consider giving it a ⭐ on GitHub!*
+There's no scheduled job in your codebase to detect upcoming due dates.
+`Notification.notify(..., 'loan_due', ...)` is ready to use — you'd call it
+from a management command (e.g. `python manage.py send_emi_reminders`) run
+via cron/Celery-beat, checking each `DISBURSED` loan's next due date. Let me
+know if you want that command written.

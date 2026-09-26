@@ -24,6 +24,29 @@ TRANSACTION_STATUS = (
     ('FLAGGED', 'Flagged'),
 )
 
+SPEND_CATEGORIES = (
+    ('FOOD', 'Food & Dining'),
+    ('SHOPPING', 'Shopping'),
+    ('BILLS', 'Bills & Utilities'),
+    ('ENTERTAINMENT', 'Entertainment'),
+    ('HEALTH', 'Health & Wellness'),
+    ('TRAVEL', 'Travel & Transport'),
+    ('TRANSFER', 'Transfer'),
+    ('OTHER', 'Other'),
+)
+
+# Icon + accent colour used consistently across dashboard, charts and budgets
+CATEGORY_META = {
+    'FOOD':          {'icon': 'bi-cup-hot',          'color': '#F59E0B'},
+    'SHOPPING':      {'icon': 'bi-bag',              'color': '#EC4899'},
+    'BILLS':         {'icon': 'bi-receipt',          'color': '#3B82F6'},
+    'ENTERTAINMENT': {'icon': 'bi-film',              'color': '#8B5CF6'},
+    'HEALTH':        {'icon': 'bi-heart-pulse',       'color': '#10B981'},
+    'TRAVEL':        {'icon': 'bi-airplane',          'color': '#06B6D4'},
+    'TRANSFER':      {'icon': 'bi-arrow-left-right',  'color': '#7C3AED'},
+    'OTHER':         {'icon': 'bi-three-dots',        'color': '#6B7280'},
+}
+
 
 class BankAccount(models.Model):
     """
@@ -49,6 +72,12 @@ class BankAccount(models.Model):
         max_digits=12, decimal_places=2, default=Decimal('100000.00')
     )
     is_active = models.BooleanField(default=True)
+    is_rejected = models.BooleanField(default=False)
+    is_approved = models.BooleanField(default=False)   # admin must approve before account is usable
+    requested_balance = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0,
+        help_text='Initial deposit amount requested by customer at registration'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
@@ -58,9 +87,7 @@ class BankAccount(models.Model):
         # Generate UPI ID if missing
         if not self.upi_id:
             self.upi_id = f"{self.user.username}{random.randint(100, 999)}@spendsmartbank"
-        # Assign random initial balance if new account
-        if self._state.adding and self.balance == Decimal('0.00'):
-            self.balance = random.randint(1000, 10000)
+        # Balance stays 0 until admin approves the account.
         super().save(*args, **kwargs)
 
     def _generate_account_number(self):
@@ -70,9 +97,11 @@ class BankAccount(models.Model):
                 return num
 
     def amount_transferred_today(self):
-        today = timezone.now().date()
+        now = timezone.localtime(timezone.now())
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timezone.timedelta(days=1)
         total = self.sent_transactions.filter(
-            timestamp__date=today, status='SUCCESS'
+            timestamp__gte=day_start, timestamp__lt=day_end, status='SUCCESS'
         ).aggregate(models.Sum('amount'))['amount__sum']
         return total or Decimal('0.00')
 
@@ -108,6 +137,9 @@ class Transaction(models.Model):
         max_length=10, choices=TRANSACTION_STATUS, default='PENDING'
     )
     note = models.CharField(max_length=140, blank=True)
+    category = models.CharField(
+        max_length=20, choices=SPEND_CATEGORIES, default='OTHER', blank=True
+    )
     failure_reason = models.CharField(max_length=200, blank=True)
     sender_balance_after = models.DecimalField(
         max_digits=14, decimal_places=2, null=True, blank=True
@@ -130,6 +162,12 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.reference_id} - {self.amount} - {self.status}"
+
+    def category_icon(self):
+        return CATEGORY_META.get(self.category, CATEGORY_META['OTHER'])['icon']
+
+    def category_color(self):
+        return CATEGORY_META.get(self.category, CATEGORY_META['OTHER'])['color']
 
 
 class RecentContact(models.Model):
@@ -166,3 +204,80 @@ class Beneficiary(models.Model):
 
     def __str__(self):
         return f"{self.user.username} → {self.account.upi_id} ({self.nickname})"
+
+
+class Budget(models.Model):
+    """
+    A per-category monthly spending goal set by the customer.
+    Progress is always computed live against SUCCESS 'SEND' transactions
+    for the current calendar month — nothing is pre-aggregated/cached,
+    so it can never drift out of sync with the ledger.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='budgets'
+    )
+    category = models.CharField(max_length=20, choices=SPEND_CATEGORIES)
+    monthly_limit = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('1.00'))]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'category')
+        ordering = ['category']
+
+    def __str__(self):
+        return f"{self.user.username} · {self.get_category_display()} · ₹{self.monthly_limit}/mo"
+
+    def icon(self):
+        return CATEGORY_META.get(self.category, CATEGORY_META['OTHER'])['icon']
+
+    def color(self):
+        return CATEGORY_META.get(self.category, CATEGORY_META['OTHER'])['color']
+
+    def spent_this_month(self):
+        # Use a plain datetime RANGE instead of timestamp__year=/timestamp__month=.
+        # Those lookups make MySQL run CONVERT_TZ() to translate UTC -> TIME_ZONE
+        # before extracting year/month — if MySQL's timezone tables aren't loaded
+        # (mysql_tzinfo_to_sql), CONVERT_TZ silently returns NULL and the filter
+        # matches nothing, even for transactions that are clearly there.
+        # A range filter compares datetimes directly and never needs CONVERT_TZ.
+        now = timezone.localtime(timezone.now())
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if month_start.month == 12:
+            next_month_start = month_start.replace(year=month_start.year + 1, month=1)
+        else:
+            next_month_start = month_start.replace(month=month_start.month + 1)
+
+        total = Transaction.objects.filter(
+            sender_account__user=self.user,
+            category=self.category,
+            status='SUCCESS',
+            timestamp__gte=month_start,
+            timestamp__lt=next_month_start,
+        ).aggregate(models.Sum('amount'))['amount__sum']
+        return total or Decimal('0.00')
+
+    def percent_used(self):
+        if not self.monthly_limit:
+            return 0
+        pct = (self.spent_this_month() / self.monthly_limit) * 100
+        return int(min(pct, 999))
+
+    def remaining(self):
+        return self.monthly_limit - self.spent_this_month()
+
+    def overage(self):
+        rem = self.remaining()
+        return -rem if rem < 0 else Decimal('0.00')
+
+    def status_level(self):
+        """'ok' | 'warn' | 'over' — drives the progress-bar colour."""
+        pct = self.percent_used()
+        if pct >= 100:
+            return 'over'
+        if pct >= 80:
+            return 'warn'
+        return 'ok'

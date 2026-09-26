@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.utils import timezone
+from django.db.models import Sum
+from decimal import Decimal
 
 from .forms import RegisterForm, SetPinForm, AdminRegisterForm
 from .models import CustomUser
@@ -21,9 +23,20 @@ def register_view(request):
         form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
-            BankAccount.objects.create(user=user, account_type='SAVINGS')
+            initial_balance = form.cleaned_data.get('initial_balance', 0)
+            BankAccount.objects.create(
+                user=user,
+                account_type='SAVINGS',
+                balance=0,
+                requested_balance=initial_balance,
+                is_approved=False,
+            )
             auth_login(request, user)
-            messages.success(request, "Welcome! Your savings account is ready. Set your transaction PIN below.")
+            messages.success(
+                request,
+                "Welcome! Your account is pending admin approval. "
+                "Once approved, your initial deposit will be credited."
+            )
             return redirect('accounts:set_pin')
     else:
         form = RegisterForm()
@@ -72,9 +85,6 @@ def login_view(request):
             request.session['login_attempts'] = 0
             request.session['login_locked_until'] = None
             auth_login(request, user)
-            # Admins who log in via the customer login page → admin dashboard
-            if user.is_staff or getattr(user, 'is_admin', False):
-                return redirect('admin_dashboard:dashboard')
             return redirect('upi:dashboard')
         else:
             attempts += 1
@@ -134,7 +144,19 @@ def set_pin_view(request):
 @login_required
 def profile_view(request):
     accounts = request.user.accounts.all()
-    return render(request, 'accounts/profile.html', {'accounts': accounts})
+
+    # Sum balances of approved accounts only.
+    # aggregate() returns None when no rows match, so we fall back to Decimal 0.
+    total_balance = (
+        accounts
+        .filter(is_approved=True)
+        .aggregate(total=Sum('balance'))['total']
+    ) or Decimal('0.00')
+
+    return render(request, 'accounts/profile.html', {
+        'accounts'      : accounts,
+        'total_balance' : total_balance,
+    })
 
 
 # ─────────────────────────────────────────────

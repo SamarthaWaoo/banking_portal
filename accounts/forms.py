@@ -35,6 +35,18 @@ class RegisterForm(UserCreationForm):
         required=True,
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
     )
+    initial_balance = forms.DecimalField(
+        required=True,
+        min_value=500,
+        max_value=10000000,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g. 10000',
+            'inputmode': 'numeric',
+            'min': '500',
+        }),
+        help_text='Minimum ₹500. Credited after admin approval.'
+    )
 
     class Meta:
         model  = CustomUser
@@ -98,7 +110,6 @@ class AdminRegisterForm(UserCreationForm):
                                  widget=forms.TextInput(attrs={'class': 'form-control'}))
     email      = forms.EmailField(required=True,
                                   widget=forms.EmailInput(attrs={'class': 'form-control'}))
-    # Admins don't need PAN/Aadhaar — use dummy values
     pan_number     = forms.CharField(max_length=10, required=False,
                                      widget=forms.HiddenInput(), initial='ADMIN0000A')
     aadhaar_number = forms.CharField(max_length=12, required=False,
@@ -106,6 +117,30 @@ class AdminRegisterForm(UserCreationForm):
     phone_number   = forms.CharField(max_length=10, required=True,
                                      widget=forms.TextInput(attrs={'class': 'form-control',
                                                                     'placeholder': '10-digit mobile'}))
+    # Secret key — must match ADMIN_REGISTRATION_SECRET in settings
+    secret_key = forms.CharField(
+        max_length=128,
+        required=True,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter the admin registration key',
+            'autocomplete': 'off',
+        }),
+        help_text='Required. Contact your system administrator for this key.',
+    )
+
+    def clean_secret_key(self):
+        from django.conf import settings
+        supplied = self.cleaned_data.get('secret_key', '').strip()
+        expected = getattr(settings, 'ADMIN_REGISTRATION_SECRET', '').strip()
+        if not expected:
+            raise forms.ValidationError(
+                'Admin registration is currently disabled (no secret key configured). '
+                'Set ADMIN_REGISTRATION_SECRET in your environment variables.'
+            )
+        if supplied != expected:
+            raise forms.ValidationError('Incorrect admin registration key.')
+        return supplied
 
     class Meta:
         model  = CustomUser

@@ -1,67 +1,161 @@
 {% extends "base.html" %}
 {% block title %}Admin Dashboard — SpendSmart Bank{% endblock %}
 {% block content %}
-<div class="container-fluid py-4 px-4">
+<style>
+/* ── Admin rail shell ─────────────────────────────────────────────
+   Not using position:fixed. Fixed positioning depends on there being
+   no transform/filter/will-change on any ancestor in the page —
+   something in the base template evidently sets one, which broke it
+   (rail scrolled away with the page).
+   Instead: the shell itself gets a set height, and the rail + main
+   pane both scroll INTERNALLY within that height. The rail never
+   moves because the shell around it never moves — no dependency on
+   viewport-relative positioning at all. */
+.vb-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: #fff;
+}
+.vb-admin-shell {
+  display: flex;
+  height: calc(100vh - 170px); /* navbar + heading + page padding, roughly */
+  min-height: 480px;
+  border: 1px solid var(--vb-border); border-radius: var(--vb-radius-lg);
+  overflow: hidden; background: #fff; box-shadow: var(--vb-shadow-sm);
+}
+.vb-admin-rail {
+  flex-shrink: 0;
+  width: 64px;
+  height: 100%;
+  background: var(--vb-sidebar-bg); border-right: 1px solid rgba(255,255,255,0.06);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 20px 0;
+  gap: 8px;
+  overflow-y: auto;
+}
+.vb-rail-btn {
+  width: 42px; height: 42px; border: none; background: transparent; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; color: var(--vb-sidebar-text);
+  font-size: 1.08rem; position: relative; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+.vb-rail-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.vb-rail-btn.active { background: var(--vb-navy); color: #fff; }
+.vb-rail-btn .vb-rail-dot {
+  position: absolute; top: -2px; right: -2px; background: #D97706; color: #fff;
+  font-size: 0.6rem; font-weight: 700; border-radius: 10px; padding: 0 4px;
+  line-height: 1.3; min-width: 14px; text-align: center;
+  box-shadow: 0 0 0 2px var(--vb-sidebar-bg);
+}
+.vb-admin-main {
+  flex: 1 1 auto;
+  display: flex; flex-direction: column; min-width: 0; background: var(--vb-bg);
+  height: 100%;
+  overflow-y: auto;
+}
+.vb-kpi-ticker {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--vb-border);
+  display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap;
+  background: #fff;
+}
+.vb-kpi-ticker > span {
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 10px 18px;
+  background: var(--vb-bg);
+  border: 1px solid var(--vb-border);
+  border-radius: var(--vb-radius-sm);
+  min-width: 84px;
+}
+.vb-kpi-ticker b { font-weight: 700; font-size: 1.15rem; color: var(--vb-ink); line-height: 1.3; }
+.vb-kpi-ticker .vb-kpi-label {
+  color: var(--vb-text-muted); font-size: 0.66rem; text-transform: uppercase;
+  letter-spacing: 0.4px; font-weight: 600; margin-top: 3px;
+}
+.vb-admin-body { padding: 20px; flex: 1 1 auto; }
+.vb-admin-body .vb-card { border-radius: var(--vb-radius-md); box-shadow: var(--vb-shadow-xs); }
+.vb-admin-body .vb-card:hover { transform: none; box-shadow: var(--vb-shadow-xs); }
+.vb-admin-body .table-vb thead th {
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700;
+  color: var(--vb-text-muted);
+}
+.vb-admin-body .table-vb tbody tr:hover td { background: #FAFAFB; }
 
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="vb-section-title mb-0"><i class="bi bi-shield-lock"></i> Admin Operations Dashboard</h4>
-    <span class="badge bg-danger fs-6">{{ flagged_count }} Flagged</span>
+@media (max-width: 767.98px) {
+  .vb-admin-rail { width: 56px; }
+}
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="vb-section-title mb-0"><i class="bi bi-shield-lock"></i> Admin Operations Console</h4>
+    <p class="text-muted small mb-0">Users, accounts, transactions, loans, and audit — all in one place.</p>
+  </div>
+</div>
+
+<div class="vb-admin-shell">
+
+  <!-- Icon rail navigation -->
+  <div class="vb-admin-rail" role="tablist" aria-orientation="vertical">
+    <button class="vb-rail-btn active" id="tabUsersLink" data-bs-target="#tabUsers" type="button" title="Users">
+      <i class="bi bi-people"></i>
+    </button>
+    <button class="vb-rail-btn" id="tabAccountsLink" data-bs-target="#tabAccounts" type="button" title="Accounts">
+      <i class="bi bi-bank2"></i>
+      {% if pending_accounts %}<span class="vb-rail-dot">{{ pending_accounts|length }}</span>{% endif %}
+    </button>
+    <button class="vb-rail-btn" id="tabPendingLink" data-bs-target="#tabPending" type="button" title="Pending">
+      <i class="bi bi-hourglass-split"></i>
+      {% if pending_accounts %}<span class="vb-rail-dot">{{ pending_accounts|length }}</span>{% endif %}
+    </button>
+    <button class="vb-rail-btn" id="tabTransactionsLink" data-bs-target="#tabTransactions" type="button" title="Transactions">
+      <i class="bi bi-arrow-left-right"></i>
+      {% if pending_transactions %}<span class="vb-rail-dot">{{ pending_transactions|length }}</span>{% endif %}
+    </button>
+    <button class="vb-rail-btn" id="tabFailedLink" data-bs-target="#tabFailed" type="button" title="Failed">
+      <i class="bi bi-exclamation-triangle"></i>
+      {% if unresolved_failed %}<span class="vb-rail-dot">{{ unresolved_failed|length }}</span>{% endif %}
+    </button>
+    <button class="vb-rail-btn" id="tabLoansLink" data-bs-target="#tabLoans" type="button" title="Loans">
+      <i class="bi bi-cash-coin"></i>
+      {% if pending_loans %}<span class="vb-rail-dot">{{ pending_loans|length }}</span>{% endif %}
+    </button>
+    <button class="vb-rail-btn" id="tabMessagingLink" data-bs-target="#tabMessaging" type="button" title="Messaging">
+      <i class="bi bi-bell"></i>
+    </button>
+    <button class="vb-rail-btn" id="tabAuditLink" data-bs-target="#tabAudit" type="button" title="Audit Log">
+      <i class="bi bi-journal-text"></i>
+    </button>
+    <button class="vb-rail-btn" id="tabChartsLink" data-bs-target="#tabCharts" type="button" title="Charts">
+      <i class="bi bi-bar-chart"></i>
+    </button>
   </div>
 
-  <!-- ── Summary Cards ──────────────────────────────────────────── -->
-  <div class="row g-3 mb-4">
-    <div class="col-6 col-md-2">
-      <div class="vb-card p-3 text-center">
-        <div class="text-muted small mb-1">Users</div>
-        <div class="fw-bold fs-5" style="color:var(--vb-navy)">{{ users|length }}</div>
-      </div>
-    </div>
-    <div class="col-6 col-md-2">
-      <div class="vb-card p-3 text-center">
-        <div class="text-muted small mb-1">Accounts</div>
-        <div class="fw-bold fs-5" style="color:var(--vb-navy)">{{ accounts|length }}</div>
-      </div>
-    </div>
-    <div class="col-6 col-md-2">
-      <div class="vb-card p-3 text-center">
-        <div class="text-muted small mb-1">Loans</div>
-        <div class="fw-bold fs-5" style="color:var(--vb-navy)">{{ loans|length }}</div>
-      </div>
-    </div>
-    <div class="col-6 col-md-2">
-      <div class="vb-card p-3 text-center">
-        <div class="text-muted small mb-1">Success Txns</div>
-        <div class="fw-bold fs-5 text-success">{{ success_count }}</div>
-      </div>
-    </div>
-    <div class="col-6 col-md-2">
-      <div class="vb-card p-3 text-center">
-        <div class="text-muted small mb-1">Failed Txns</div>
-        <div class="fw-bold fs-5 text-danger">{{ failed_count }}</div>
-      </div>
-    </div>
-    <div class="col-6 col-md-2">
-      <div class="vb-card p-3 text-center">
-        <div class="text-muted small mb-1">Total Balance</div>
-        <div class="fw-bold fs-5" style="color:var(--vb-navy)">₹{{ total_balance }}</div>
-      </div>
-    </div>
-  </div>
+  <div class="vb-admin-main">
 
-  <!-- ── Tabs ───────────────────────────────────────────────────── -->
-  <ul class="nav nav-tabs mb-3" id="adminTabs" role="tablist">
-    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabUsers"         type="button"><i class="bi bi-people"></i> Users</button></li>
-    <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tabAccounts"      type="button"><i class="bi bi-bank2"></i> Accounts</button></li>
-    <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tabTransactions"  type="button"><i class="bi bi-arrow-left-right"></i> Transactions</button></li>
-    <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tabFailed"        type="button"><i class="bi bi-exclamation-triangle text-danger"></i> Failed ({{ unresolved_failed|length }})</button></li>
-    <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tabLoans"         type="button"><i class="bi bi-cash-coin"></i> Loans</button></li>
-    <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tabAudit"         type="button"><i class="bi bi-journal-text"></i> Audit Log</button></li>
-    <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tabCharts"        type="button"><i class="bi bi-bar-chart"></i> Charts</button></li>
-  </ul>
+    <!-- KPI ticker strip -->
+    <div class="vb-kpi-ticker">
+      <span><b>{{ users|length }}</b><span class="vb-kpi-label">users</span></span>
+      <span><b>{{ accounts|length }}</b><span class="vb-kpi-label">accounts</span></span>
+      {% if pending_accounts %}
+      <span style="color:#D97706;"><b>{{ pending_accounts|length }}</b><span style="color:#D97706;" class="vb-kpi-label">pending</span></span>
+      {% endif %}
+      <span><b>{{ loans|length }}</b><span class="vb-kpi-label">loans</span></span>
+      <span style="color:#16A34A;"><b>{{ success_count }}</b><span style="color:#16A34A;" class="vb-kpi-label">success</span></span>
+      <span style="color:#DC2626;"><b>{{ failed_count }}</b><span style="color:#DC2626;" class="vb-kpi-label">failed</span></span>
+      <span><b>₹{{ total_balance }}</b><span class="vb-kpi-label">balance</span></span>
+      {% if flagged_count %}
+      <span style="margin-left:auto;font-size:0.72rem;padding:3px 10px;border-radius:6px;background:#FEF2F2;color:#DC2626;white-space:nowrap;">
+        <i class="bi bi-flag-fill"></i> {{ flagged_count }} flagged
+      </span>
+      {% endif %}
+    </div>
 
-  <div class="tab-content">
-
-    <!-- ── USERS ──────────────────────────────────────────────── -->
+    <div class="vb-admin-body">
+      <div class="tab-content">
+    <!-- USERS -->
     <div class="tab-pane fade show active" id="tabUsers" role="tabpanel">
       <div class="vb-card p-4">
         <div class="d-flex justify-content-between mb-3">
@@ -76,7 +170,16 @@
               <tr>
                 <td class="fw-semibold">{{ u.username }}</td>
                 <td>{{ u.get_full_name }}</td>
-                <td class="small text-muted">{{ u.customer_id }}</td>
+                <td class="small">
+                  {% if not u.is_staff and not u.is_admin %}
+                    <a href="{% url 'admin_dashboard:customer_detail' u.customer_id %}"
+                       class="text-decoration-none fw-semibold" style="color:var(--vb-navy);">
+                      {{ u.customer_id }}
+                    </a>
+                  {% else %}
+                    <span class="text-muted">{{ u.customer_id }}</span>
+                  {% endif %}
+                </td>
                 <td class="small">{{ u.email }}</td>
                 <td class="small">{{ u.phone_number }}</td>
                 <td>
@@ -97,49 +200,58 @@
       </div>
     </div>
 
-    <!-- ── ACCOUNTS ───────────────────────────────────────────── -->
+    <!-- ACCOUNTS -->
     <div class="tab-pane fade" id="tabAccounts" role="tabpanel">
       <div class="vb-card p-4">
         <h6 class="mb-3">All Bank Accounts</h6>
         <div class="table-responsive">
           <table class="table table-vb mb-0">
-            <thead><tr><th>Account #</th><th>User</th><th>Type</th><th>UPI ID</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Account #</th><th>Customer</th><th>Type</th><th>UPI ID</th><th>Balance</th><th>Approved</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
-              {% for acc in accounts %}
+              {% for acc in all_accounts %}
               <tr>
                 <td class="small fw-semibold">{{ acc.account_number }}</td>
-                <td class="small">{{ acc.user.username }}</td>
-                <td class="small">{{ acc.get_account_type_display }}</td>
-                <td class="small text-muted">{{ acc.upi_id }}</td>
-                <td class="fw-bold">₹{{ acc.balance }}</td>
-                <td>
-                  {% if acc.is_active %}
-                    <span class="vb-badge badge-status-SUCCESS">Active</span>
+                <td class="small">
+                  {% if not acc.user.is_staff and not acc.user.is_admin %}
+                    <a href="{% url 'admin_dashboard:customer_detail' acc.user.customer_id %}" class="text-decoration-none">{{ acc.user.username }}</a>
                   {% else %}
-                    <span class="vb-badge badge-status-FAILED">Frozen</span>
+                    {{ acc.user.username }}
                   {% endif %}
                 </td>
+                <td class="small">{{ acc.get_account_type_display }}</td>
+                <td class="small text-muted">{{ acc.upi_id }}</td>
+                <td class="fw-bold">
+                  {% if acc.is_approved %}₹{{ acc.balance }}
+                  {% else %}<span class="text-muted small fst-italic">—</span><span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">pending</span>
+                  {% endif %}
+                </td>
+                <td>{% if acc.is_approved %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-warning text-dark">No</span>{% endif %}</td>
+                <td>{% if acc.is_active %}<span class="vb-badge badge-status-SUCCESS">Active</span>{% else %}<span class="vb-badge badge-status-FAILED">Frozen</span>{% endif %}</td>
                 <td>
+                  <div class="d-flex gap-1 flex-wrap">
                   {% if acc.is_active %}
                     <form method="post" action="{% url 'admin_dashboard:freeze_account' acc.id %}" class="d-inline"
-                          onsubmit="return confirm('Freeze account {{ acc.account_number }}?')">
+                          onsubmit="return confirm('Freeze {{ acc.account_number }}?')">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn-sm btn-outline-danger">
-                        <i class="bi bi-lock-fill"></i> Freeze
-                      </button>
+                      <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-lock-fill"></i> Freeze</button>
                     </form>
                   {% else %}
                     <form method="post" action="{% url 'admin_dashboard:unfreeze_account' acc.id %}" class="d-inline">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn-sm btn-outline-success">
-                        <i class="bi bi-unlock-fill"></i> Unfreeze
-                      </button>
+                      <button type="submit" class="btn btn-sm btn-outline-success"><i class="bi bi-unlock-fill"></i> Unfreeze</button>
                     </form>
                   {% endif %}
+                  {% if not acc.user.is_staff %}
+                    <a href="{% url 'admin_dashboard:xbrl_statement' acc.user.customer_id %}"
+                       class="btn btn-sm btn-outline-secondary" title="XBRL Export">
+                      <i class="bi bi-file-earmark-code"></i>
+                    </a>
+                  {% endif %}
+                  </div>
                 </td>
               </tr>
               {% empty %}
-              <tr><td colspan="7" class="text-center text-muted py-3">No accounts.</td></tr>
+              <tr><td colspan="8" class="text-center text-muted py-3">No accounts.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -147,7 +259,98 @@
       </div>
     </div>
 
-    <!-- ── TRANSACTIONS (paginated) ───────────────────────────── -->
+    <!-- PENDING ACCOUNTS -->
+    <div class="tab-pane fade" id="tabPending" role="tabpanel">
+      <div class="vb-card p-4">
+        <h6 class="mb-1">Pending Account Approvals</h6>
+        <p class="text-muted small mb-4">
+          These customers have registered but their account has not yet been approved.
+          Balance is hidden until you approve. Approving will credit their requested deposit.
+        </p>
+        {% if pending_accounts %}
+        <div class="row g-3">
+          {% for acc in pending_accounts %}
+          <div class="col-12 col-md-6 col-lg-4">
+            <div class="border rounded-3 p-3 border-warning">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <a href="{% url 'admin_dashboard:customer_detail' acc.user.customer_id %}"
+                     class="fw-semibold text-decoration-none" style="color:var(--vb-navy);">
+                    {{ acc.user.get_full_name|default:acc.user.username }}
+                  </a>
+                  <div class="text-muted small">@{{ acc.user.username }}</div>
+                </div>
+                <span class="badge bg-warning text-dark">Pending</span>
+              </div>
+              <div class="small mb-1"><span class="text-muted">Customer ID:</span> <span class="fw-semibold">{{ acc.user.customer_id }}</span></div>
+              <div class="small mb-1"><span class="text-muted">Account #:</span> <span class="fw-semibold">{{ acc.account_number }}</span></div>
+              <div class="small mb-1"><span class="text-muted">Type:</span> {{ acc.get_account_type_display }}</div>
+              <div class="small mb-1"><span class="text-muted">UPI ID:</span> <span class="fw-semibold">{{ acc.upi_id }}</span></div>
+              <div class="small mb-1"><span class="text-muted">Joined:</span> {{ acc.user.date_joined|date:"d M Y, H:i" }}</div>
+              <div class="alert alert-warning py-2 small mt-2 mb-2 d-flex justify-content-between align-items-center">
+                <div><i class="bi bi-wallet2"></i> <strong>Requested deposit:</strong></div>
+                <strong>&#8377;{{ acc.requested_balance }}</strong>
+              </div>
+              <div class="p-2 rounded mb-3 text-muted small" style="background:rgba(0,0,0,0.04);">
+                <i class="bi bi-eye-slash"></i> Balance hidden until approved
+              </div>
+              <div class="d-flex gap-2">
+                <form method="post" action="{% url 'admin_dashboard:approve_account' acc.id %}"
+                      class="flex-grow-1"
+                      onsubmit="return confirm('Approve account for {{ acc.user.username }} and credit ₹{{ acc.requested_balance }}?')">
+                  {% csrf_token %}
+                  <input type="hidden" name="next_tab" value="tabPending">
+                  <button type="submit" class="btn btn-success btn-sm w-100">
+                    <i class="bi bi-check-lg"></i> Approve &amp; Credit
+                  </button>
+                </form>
+                <form method="post" action="{% url 'admin_dashboard:reject_account' acc.id %}"
+                      onsubmit="return confirm('Reject account for {{ acc.user.username }}?')">
+                  {% csrf_token %}
+                  <input type="hidden" name="next_tab" value="tabPending">
+                  <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-x-lg"></i> Reject
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-check-circle text-success" style="font-size:2.5rem;"></i>
+          <p class="mt-3 mb-0 fw-semibold">No pending accounts</p>
+          <p class="small">All new requests have been reviewed.</p>
+        </div>
+        {% endif %}
+
+        {% if rejected_accounts %}
+        <hr class="my-4">
+        <h6 class="text-danger mb-3"><i class="bi bi-x-circle"></i> Rejected Accounts ({{ rejected_accounts|length }})</h6>
+        <div class="table-responsive">
+          <table class="table table-sm table-vb mb-0">
+            <thead><tr><th>User</th><th>Account #</th><th>Requested</th><th>Joined</th></tr></thead>
+            <tbody>
+              {% for acc in rejected_accounts %}
+              <tr class="table-danger">
+                <td>
+                  <a href="{% url 'admin_dashboard:customer_detail' acc.user.customer_id %}" class="fw-semibold small text-decoration-none text-danger">{{ acc.user.get_full_name|default:acc.user.username }}</a>
+                  <div class="text-muted" style="font-size:0.72rem;">{{ acc.user.customer_id }}</div>
+                </td>
+                <td class="small">{{ acc.account_number }}</td>
+                <td class="small fw-semibold">&#8377;{{ acc.requested_balance }}</td>
+                <td class="small">{{ acc.user.date_joined|date:"d M Y" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- TRANSACTIONS -->
     <div class="tab-pane fade" id="tabTransactions" role="tabpanel">
       <div class="vb-card p-4">
         <h6 class="mb-3">All Transactions</h6>
@@ -159,8 +362,16 @@
               <tr>
                 <td class="small">{{ t.timestamp|date:"d M Y, H:i" }}</td>
                 <td class="small fw-semibold">{{ t.reference_id }}</td>
-                <td class="small">{{ t.sender_account.user.username|default:"—" }}</td>
-                <td class="small">{{ t.receiver_account.user.username|default:"—" }}</td>
+                <td class="small">
+                  {% if t.sender_account.user and not t.sender_account.user.is_staff %}
+                    <a href="{% url 'admin_dashboard:customer_detail' t.sender_account.user.customer_id %}" class="text-decoration-none">{{ t.sender_account.user.username }}</a>
+                  {% else %}{{ t.sender_account.user.username|default:"—" }}{% endif %}
+                </td>
+                <td class="small">
+                  {% if t.receiver_account.user and not t.receiver_account.user.is_staff %}
+                    <a href="{% url 'admin_dashboard:customer_detail' t.receiver_account.user.customer_id %}" class="text-decoration-none">{{ t.receiver_account.user.username }}</a>
+                  {% else %}{{ t.receiver_account.user.username|default:"—" }}{% endif %}
+                </td>
                 <td class="fw-bold">₹{{ t.amount }}</td>
                 <td>
                   <span class="vb-badge badge-status-{{ t.status }}">{{ t.status }}</span>
@@ -175,28 +386,23 @@
             </tbody>
           </table>
         </div>
-        <!-- Pagination -->
         {% if transactions.has_other_pages %}
         <nav class="mt-3">
           <ul class="pagination pagination-sm justify-content-center">
-            {% if transactions.has_previous %}
-              <li class="page-item"><a class="page-link" href="?page={{ transactions.previous_page_number }}">‹</a></li>
-            {% endif %}
+            {% if transactions.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ transactions.previous_page_number }}">‹</a></li>{% endif %}
             <li class="page-item disabled"><span class="page-link">Page {{ transactions.number }} of {{ transactions.paginator.num_pages }}</span></li>
-            {% if transactions.has_next %}
-              <li class="page-item"><a class="page-link" href="?page={{ transactions.next_page_number }}">›</a></li>
-            {% endif %}
+            {% if transactions.has_next %}<li class="page-item"><a class="page-link" href="?page={{ transactions.next_page_number }}">›</a></li>{% endif %}
           </ul>
         </nav>
         {% endif %}
       </div>
     </div>
 
-    <!-- ── FAILED / UNRESOLVED ────────────────────────────────── -->
+    <!-- FAILED -->
     <div class="tab-pane fade" id="tabFailed" role="tabpanel">
       <div class="vb-card p-4">
         <h6 class="mb-1">Unresolved Failed Transactions</h6>
-        <p class="text-muted small mb-3">Review each failure, add a resolution note, and mark it resolved. No money moved on any of these.</p>
+        <p class="text-muted small mb-3">Review each failure, add a resolution note, and mark it resolved.</p>
         {% for t in unresolved_failed %}
         <div class="border rounded-3 p-3 mb-3 {% if t.is_flagged %}border-warning{% else %}border-danger{% endif %}">
           <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -206,7 +412,7 @@
             </div>
             <div class="text-end">
               <div class="fw-bold text-danger">₹{{ t.amount }}</div>
-              {% if t.is_flagged %}<span class="badge bg-warning text-dark">Flagged PIN Attempt</span>{% endif %}
+              {% if t.is_flagged %}<span class="badge bg-warning text-dark">Flagged</span>{% endif %}
             </div>
           </div>
           <div class="mt-2 small">
@@ -216,7 +422,6 @@
           <div class="alert vb-alert-error py-2 mt-2 mb-2 small">
             <i class="bi bi-exclamation-circle"></i> <strong>Failure reason:</strong> {{ t.failure_reason|default:"No reason recorded." }}
           </div>
-          <!-- Resolution form -->
           <form method="post" action="{% url 'admin_dashboard:resolve_transaction' t.id %}" class="d-flex gap-2 mt-2">
             {% csrf_token %}
             <input type="text" name="resolution_note" class="form-control form-control-sm"
@@ -229,107 +434,56 @@
         {% empty %}
         <div class="text-center text-muted py-4">
           <i class="bi bi-check-circle text-success" style="font-size:2rem"></i>
-          <p class="mt-2 mb-0">No unresolved failures. All clear.</p>
+          <p class="mt-2 mb-0">No unresolved failures.</p>
         </div>
         {% endfor %}
-
-        <!-- Recently resolved failures (last 10) -->
-        {% with resolved_failed=resolved_failed %}
-        {% if resolved_failed %}
-        <hr>
-        <h6 class="text-muted mb-2"><i class="bi bi-check-all"></i> Recently Resolved</h6>
-        {% for t in resolved_failed %}
-        <div class="border rounded-3 p-3 mb-2 border-success bg-light">
-          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-            <div>
-              <div class="fw-semibold small">{{ t.reference_id }}</div>
-              <div class="text-muted small">{{ t.timestamp|date:"d M Y, H:i" }} &mdash;
-                {{ t.sender_account.user.username|default:"unknown" }} → {{ t.receiver_account.upi_id|default:"unknown" }}
-              </div>
-            </div>
-            <div class="text-end">
-              <div class="fw-bold">₹{{ t.amount }}</div>
-              <span class="badge bg-success">Resolved</span>
-            </div>
-          </div>
-          <div class="mt-2 small">
-            <strong>Failure:</strong> <span class="text-danger">{{ t.failure_reason|default:"—" }}</span>
-          </div>
-          <div class="mt-1 small">
-            <strong>Admin note:</strong> <span class="text-success">{{ t.resolution_note|default:"—" }}</span>
-          </div>
-        </div>
-        {% endfor %}
-        {% endif %}
-        {% endwith %}
       </div>
     </div>
 
-    <!-- ── LOANS ──────────────────────────────────────────────── -->
+    <!-- LOANS -->
     <div class="tab-pane fade" id="tabLoans" role="tabpanel">
       <div class="vb-card p-4">
-        <h6 class="mb-1">All Loan Applications</h6>
-        <p class="text-muted small mb-3">Pending applications await your approval or rejection below.</p>
+        <h6 class="mb-3">All Loan Applications</h6>
         <div class="table-responsive">
           <table class="table table-vb mb-0">
-            <thead>
-              <tr>
-                <th>App ID</th><th>User</th><th>Type</th><th>Amount</th>
-                <th>Tenure</th><th>EMI</th><th>Credit Score</th>
-                <th>Status / Notes</th><th>Applied</th><th>Action</th>
-              </tr>
-            </thead>
+            <thead><tr><th>App ID</th><th>Customer</th><th>Type</th><th>Amount</th><th>Tenure</th><th>Status</th><th>Applied</th><th>Actions</th></tr></thead>
             <tbody>
               {% for loan in loans %}
               <tr>
-                <td class="small fw-semibold">{{ loan.application_id }}</td>
-                <td class="small">{{ loan.user.username }}</td>
+                <td class="small fw-semibold">
+                  <a href="{% url 'loans:admin_loan_detail' loan.application_id %}" class="text-decoration-none" style="color:var(--vb-navy);">
+                    {{ loan.application_id }}
+                  </a>
+                </td>
+                <td class="small">
+                  <a href="{% url 'admin_dashboard:customer_detail' loan.user.customer_id %}" class="text-decoration-none">{{ loan.user.username }}</a>
+                </td>
                 <td class="small">{{ loan.get_loan_type_display }}</td>
-                <td class="fw-bold">₹{{ loan.loan_amount }}</td>
+                <td class="fw-bold">&#8377;{{ loan.loan_amount }}</td>
                 <td class="small">{{ loan.tenure_months }}m</td>
-                <td class="small">{% if loan.emi_amount %}₹{{ loan.emi_amount }}{% else %}—{% endif %}</td>
-                <td class="small">{{ loan.credit_score }}</td>
                 <td>
                   <span class="vb-badge badge-status-{{ loan.status }}">{{ loan.get_status_display }}</span>
-                  {% if loan.decision_reason %}
-                  <div class="text-muted" style="font-size:0.72rem;margin-top:3px;">{{ loan.decision_reason }}</div>
-                  {% endif %}
+                  {% if loan.decision_reason %}<div class="text-muted" style="font-size:0.72rem;max-width:180px;">{{ loan.decision_reason }}</div>{% endif %}
                 </td>
                 <td class="small">{{ loan.applied_at|date:"d M Y" }}</td>
                 <td>
-                  {% if loan.status == 'PENDING' %}
-                  <div class="d-flex flex-column gap-1">
-                    <!-- Approve -->
-                    <form method="post" action="{% url 'loans:approve_loan' loan.application_id %}">
-                      {% csrf_token %}
-                      <input type="hidden" name="note" value="Approved by admin.">
-                      <button type="submit" class="btn btn-sm btn-success w-100"
-                              onclick="return confirm('Approve loan {{ loan.application_id }}?')">
-                        <i class="bi bi-check-lg"></i> Approve
-                      </button>
-                    </form>
-                    <!-- Reject with reason -->
-                    <button type="button" class="btn btn-sm btn-outline-danger w-100"
-                            data-bs-toggle="collapse"
-                            data-bs-target="#rejectForm{{ loan.id }}">
-                      <i class="bi bi-x-lg"></i> Reject
-                    </button>
-                    <div class="collapse mt-1" id="rejectForm{{ loan.id }}">
-                      <form method="post" action="{% url 'loans:reject_loan' loan.application_id %}">
-                        {% csrf_token %}
-                        <input type="text" name="reason" class="form-control form-control-sm mb-1"
-                               placeholder="Reason for rejection" required>
-                        <button type="submit" class="btn btn-sm btn-danger w-100">Confirm Reject</button>
-                      </form>
-                    </div>
-                  </div>
+                  {% if loan.status == "PENDING" %}
+                  <a href="{% url 'loans:admin_loan_detail' loan.application_id %}"
+                     class="btn btn-sm vb-btn-primary">
+                    <i class="bi bi-eye"></i> Review
+                  </a>
+                  {% elif loan.status == "APPROVED" %}
+                  <form method="post" action="{% url 'loans:disburse' loan.application_id %}" class="d-inline" onsubmit="return confirm('Disburse this loan?')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-cash"></i> Disburse</button>
+                  </form>
                   {% else %}
-                  <span class="text-muted small">—</span>
+                  <span class="text-muted small">&#8212;</span>
                   {% endif %}
                 </td>
               </tr>
               {% empty %}
-              <tr><td colspan="10" class="text-center text-muted py-3">No loan applications.</td></tr>
+              <tr><td colspan="8" class="text-center text-muted py-3">No loans.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -337,11 +491,100 @@
       </div>
     </div>
 
-    <!-- ── AUDIT LOG ──────────────────────────────────────────── -->
+    <!-- MESSAGING & MARKETING -->
+    <div class="tab-pane fade" id="tabMessaging" role="tabpanel">
+      <div class="row g-4">
+
+        <!-- Send Notification -->
+        <div class="col-lg-5">
+          <div class="vb-card p-4">
+            <h6 class="mb-3"><i class="bi bi-send"></i> Send Notification</h6>
+            <form id="notifyForm" onsubmit="sendNotification(event)">
+              {% csrf_token %}
+
+              <div class="mb-3">
+                <label class="form-label fw-semibold small">Recipient</label>
+                <select name="recipient_id" class="form-select form-select-sm">
+                  <option value="">📢 Broadcast to ALL customers</option>
+                  {% for c in customers %}
+                    <option value="{{ c.id }}">{{ c.username }} — {{ c.get_full_name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-semibold small">Preset Template</label>
+                <select name="preset" class="form-select form-select-sm" id="presetSelect">
+                  <option value="welcome">🎉 Welcome to SpendSmart Bank</option>
+                  <option value="approved">✅ Account Approved</option>
+                  <option value="freeze_warning">⚠️ Account Freeze Warning</option>
+                  <option value="loan_approved">💰 Loan Application Approved</option>
+                  <option value="loan_rejected">📄 Loan Application Update</option>
+                  <option value="festival_offer">🎊 Festival Offer</option>
+                  <option value="rate_update">📊 Interest Rate Update</option>
+                  <option value="referral">🤝 Referral Programme</option>
+                  <option value="custom">✏️ Custom Message</option>
+                </select>
+              </div>
+
+              <div id="customMsgFields" class="d-none">
+                <div class="mb-2">
+                  <label class="form-label fw-semibold small">Custom Title</label>
+                  <input type="text" name="custom_title" class="form-control form-control-sm" placeholder="Notification title">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold small">Custom Body</label>
+                  <textarea name="custom_body" class="form-control form-control-sm" rows="4" placeholder="Message body…"></textarea>
+                </div>
+              </div>
+
+              <div id="presetPreview" class="alert vb-alert-info p-2 small mb-3"></div>
+
+              <div id="notifyResult" class="alert d-none mb-2"></div>
+              <button type="submit" class="btn vb-btn-primary w-100" id="notifySendBtn">
+                <i class="bi bi-send-fill"></i> Send Notification
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Sent Notifications History -->
+        <div class="col-lg-7">
+          <div class="vb-card p-4">
+            <h6 class="mb-3"><i class="bi bi-bell-history"></i> Recent Notifications (last 50)</h6>
+            {% if notifications %}
+            {% for n in notifications %}
+            <div class="d-flex gap-3 border-bottom py-2 align-items-start">
+              <i class="bi {{ n.icon }} fs-5 text-muted mt-1 flex-shrink-0"></i>
+              <div class="flex-grow-1">
+                <div class="d-flex justify-content-between">
+                  <div class="fw-semibold small">{{ n.title }}</div>
+                  <div class="text-muted" style="font-size:0.72rem; white-space:nowrap;">{{ n.created_at|date:"d M Y, H:i" }}</div>
+                </div>
+                <div class="text-muted small">{{ n.body|truncatewords:15 }}</div>
+                <div class="small mt-1">
+                  {% if n.recipient %}
+                    <span class="badge bg-light text-dark border">→ {{ n.recipient.username }}</span>
+                  {% else %}
+                    <span class="badge bg-info text-dark">Broadcast</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted small mb-0">No notifications sent yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUDIT LOG -->
     <div class="tab-pane fade" id="tabAudit" role="tabpanel">
       <div class="vb-card p-4">
         <h6 class="mb-1">Audit Log</h6>
-        <p class="text-muted small mb-3">Last 40 operations (success + failure) across all users.</p>
+        <p class="text-muted small mb-3">Last 40 operations across all users.</p>
         <div class="table-responsive">
           <table class="table table-vb mb-0">
             <thead><tr><th>Timestamp</th><th>Ref ID</th><th>User</th><th>Amount</th><th>Status</th><th>Failure Reason</th><th>Resolved?</th></tr></thead>
@@ -355,13 +598,9 @@
                 <td><span class="vb-badge badge-status-{{ log.status }}">{{ log.status }}</span></td>
                 <td class="small text-danger">{{ log.failure_reason|default:"—" }}</td>
                 <td>
-                  {% if log.resolved %}
-                    <span class="badge bg-success">Yes</span>
-                  {% elif log.status == 'FAILED' %}
-                    <span class="badge bg-secondary">Pending</span>
-                  {% else %}
-                    <span class="badge bg-light text-muted">N/A</span>
-                  {% endif %}
+                  {% if log.resolved %}<span class="badge bg-success">Yes</span>
+                  {% elif log.status == 'FAILED' %}<span class="badge bg-secondary">Pending</span>
+                  {% else %}<span class="badge bg-light text-muted">N/A</span>{% endif %}
                 </td>
               </tr>
               {% empty %}
@@ -373,7 +612,7 @@
       </div>
     </div>
 
-    <!-- ── CHARTS ─────────────────────────────────────────────── -->
+    <!-- CHARTS -->
     <div class="tab-pane fade" id="tabCharts" role="tabpanel">
       <div class="row g-4">
         <div class="col-md-6">
@@ -392,11 +631,54 @@
     </div>
 
   </div><!-- /tab-content -->
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-// Live client-side user search filter
+// ── Manual rail-tab switching (guaranteed, independent of Bootstrap's data-api) ──
+document.querySelectorAll('.vb-admin-rail .vb-rail-btn').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    const targetSel = this.getAttribute('data-bs-target');
+    const targetPane = document.querySelector(targetSel);
+    if (!targetPane) return;
+
+    document.querySelectorAll('.vb-admin-rail .vb-rail-btn').forEach(function (b) {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.tab-content > .tab-pane').forEach(function (p) {
+      p.classList.remove('show', 'active');
+    });
+
+    this.classList.add('active');
+    this.setAttribute('aria-selected', 'true');
+    targetPane.classList.add('show', 'active');
+  });
+});
+
+// ── Auto-activate tab from URL hash (keeps admin on Pending tab after approve/reject) ──
+(function () {
+  const hash = window.location.hash;
+  if (hash) {
+    const id = hash.replace('#', '');
+    const btn = document.getElementById(id);
+    if (btn) {
+      document.querySelectorAll('.vb-admin-rail .vb-rail-btn').forEach(b => {
+        b.classList.remove('active');
+        const p = document.querySelector(b.getAttribute('data-bs-target'));
+        if (p) p.classList.remove('show', 'active');
+      });
+      btn.classList.add('active');
+      const pane = document.querySelector(btn.getAttribute('data-bs-target'));
+      if (pane) pane.classList.add('show', 'active');
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }
+})();
+
+// Live user-table search
 document.getElementById('userSearch').addEventListener('keyup', function () {
   const q = this.value.toLowerCase();
   document.querySelectorAll('#userTable tbody tr').forEach(row => {
@@ -404,26 +686,113 @@ document.getElementById('userSearch').addEventListener('keyup', function () {
   });
 });
 
-// Transaction status doughnut
+// Preset notification preview + custom field toggle
+const PRESETS = {{ preset_templates|safe }};
+const presetSel = document.getElementById('presetSelect');
+const previewEl = document.getElementById('presetPreview');
+const customFields = document.getElementById('customMsgFields');
+
+function updatePreview() {
+  const key = presetSel.value;
+  const tmpl = PRESETS[key] || {};
+  if (key === 'custom') {
+    customFields.classList.remove('d-none');
+    previewEl.innerHTML = '<em class="text-muted">Enter your custom title and message above.</em>';
+  } else {
+    customFields.classList.add('d-none');
+    previewEl.innerHTML = tmpl.title
+      ? `<strong>${tmpl.title}</strong><br><span class="text-muted">${tmpl.body}</span>`
+      : '';
+  }
+}
+presetSel.addEventListener('change', updatePreview);
+updatePreview();
+
+// ── Pending approve/reject via AJAX ───────────────────────────────────────
+const CSRF = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+async function pendingAction(url, confirmMsg, accountId) {
+  if (!confirm(confirmMsg)) return;
+  try {
+    const res  = await fetch(url, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': CSRF },
+      body: new URLSearchParams({ csrfmiddlewaretoken: CSRF }),
+    });
+    const data = await res.json();
+    // Remove the card from DOM immediately
+    const card = document.querySelector(`[data-account-id="${accountId}"]`);
+    if (card) {
+      card.style.transition = 'opacity 0.3s';
+      card.style.opacity = '0';
+      setTimeout(() => card.remove(), 300);
+    }
+    // Show toast
+    showToast(data.message, data.status === 'ok' ? 'success' : 'danger');
+  } catch (err) {
+    showToast('Error: ' + err.message, 'danger');
+  }
+}
+
+// ── Messaging send via AJAX ────────────────────────────────────────────────
+async function sendNotification(e) {
+  e.preventDefault();
+  const form   = document.getElementById('notifyForm');
+  const result = document.getElementById('notifyResult');
+  const btn    = document.getElementById('notifySendBtn');
+  const fd     = new FormData(form);
+  fd.set('csrfmiddlewaretoken', CSRF);
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Sending…';
+  try {
+    const res  = await fetch("{% url 'admin_dashboard:send_notification' %}", {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': CSRF },
+      body: new URLSearchParams(fd),
+    });
+    const data = await res.json();
+    result.className = 'alert alert-' + (data.status === 'ok' ? 'success' : 'danger');
+    result.textContent = data.message;
+    result.classList.remove('d-none');
+    form.reset();
+    updatePreview();
+  } catch (err) {
+    result.className = 'alert alert-danger';
+    result.textContent = 'Error: ' + err.message;
+    result.classList.remove('d-none');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send-fill"></i> Send Notification';
+  }
+}
+
+// ── Toast helper ──────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const container = document.getElementById('toastContainer');
+  const id = 'toast_' + Date.now();
+  container.insertAdjacentHTML('beforeend', `
+    <div id="${id}" class="toast align-items-center text-bg-${type} border-0 mb-2" role="alert" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">${msg}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>`);
+  const el = new bootstrap.Toast(document.getElementById(id), { delay: 4000 });
+  el.show();
+  setTimeout(() => document.getElementById(id)?.remove(), 5000);
+}
+
+// Charts
 new Chart(document.getElementById('txnChart'), {
   type: 'doughnut',
   data: {
     labels: ['Success', 'Failed', 'Flagged', 'Pending'],
-    datasets: [{
-      data: [{{ success_count }}, {{ failed_count }}, {{ flagged_count }}, 0],
-      backgroundColor: ['#1e8e5a', '#c0392b', '#c9a227', '#6c757d'],
-    }]
+    datasets: [{ data: [{{ success_count }}, {{ failed_count }}, {{ flagged_count }}, 0],
+      backgroundColor: ['#16A34A', '#DC2626', '#7C3AED', '#9CA3AF'] }]
   },
   options: { plugins: { legend: { position: 'bottom' } } }
 });
 
-// Loan status bar chart
-const loanStatuses = {
-  {% for loan in loans %}
-    '{{ loan.status }}': (loanStatuses && loanStatuses['{{ loan.status }}'] || 0) + 1,
-  {% endfor %}
-};
-// compute counts server-side style
 const loanLabels = ['PENDING','APPROVED','REJECTED','DISBURSED','CLOSED','DEFAULTED'];
 const loanCounts = loanLabels.map(s => {
   let c = 0;
@@ -432,18 +801,8 @@ const loanCounts = loanLabels.map(s => {
 });
 new Chart(document.getElementById('loanChart'), {
   type: 'bar',
-  data: {
-    labels: loanLabels,
-    datasets: [{
-      label: 'Applications',
-      data: loanCounts,
-      backgroundColor: '#0a2540',
-    }]
-  },
-  options: {
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-  }
+  data: { labels: loanLabels, datasets: [{ label: 'Applications', data: loanCounts, backgroundColor: '#7C3AED' }] },
+  options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
 });
 </script>
 {% endblock %}

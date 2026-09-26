@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+{% block title %}Loan {{ loan.application_id }} — Admin Review{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:860px;">
+
+  <!-- Back -->
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <a href="{% url 'admin_dashboard:dashboard' %}#tabLoansLink"
+       class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Back to Admin Dashboard
+    </a>
+    {% if not loan.user.is_staff and not loan.user.is_admin %}
+    <a href="{% url 'admin_dashboard:customer_detail' loan.user.customer_id %}"
+       class="btn btn-sm vb-btn-outline">
+      <i class="bi bi-person-vcard"></i> View Customer Profile
+    </a>
+    {% endif %}
+  </div>
+
+  <!-- Header -->
+  <div class="vb-card p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+      <div>
+        <div class="vb-eyebrow mb-1">Admin Review</div>
+        <h5 class="vb-section-title mb-0">
+          {{ loan.get_loan_type_display }} — {{ loan.application_id }}
+        </h5>
+        <div class="text-muted small mt-1">
+          Applied by <strong>{{ loan.user.get_full_name|default:loan.user.username }}</strong>
+          (@{{ loan.user.username }}) on {{ loan.applied_at|date:"d M Y, H:i" }}
+        </div>
+      </div>
+      <span class="vb-badge badge-status-{{ loan.status }} fs-6">{{ loan.get_status_display }}</span>
+    </div>
+
+    <!-- Full detail grid -->
+    <div class="row g-3">
+      <div class="col-6 col-md-3">
+        <div class="loan-detail-stat">
+          <div class="lbl">Loan Amount</div>
+          <div class="val">₹{{ loan.loan_amount|floatformat:"0" }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="loan-detail-stat">
+          <div class="lbl">Interest Rate</div>
+          <div class="val">{{ loan.interest_rate }}% p.a.</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="loan-detail-stat">
+          <div class="lbl">Tenure</div>
+          <div class="val">{{ tenure_years }} yr ({{ loan.tenure_months }} mo)</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="loan-detail-stat">
+          <div class="lbl">Monthly EMI</div>
+          <div class="val" style="color:var(--vb-navy);">₹{{ loan.emi_amount|default:loan.calc_emi }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="loan-detail-stat">
+          <div class="lbl">Monthly Salary</div>
+          <div class="val">₹{{ loan.monthly_salary|floatformat:"0" }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="loan-detail-stat">
+          <div class="lbl">Monthly Expenses</div>
+          <div class="val">₹{{ loan.monthly_expenses|floatformat:"0" }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="loan-detail-stat">
+          <div class="lbl">Existing EMI</div>
+          <div class="val">₹{{ loan.existing_emi|floatformat:"0" }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="loan-detail-stat">
+          <div class="lbl">Disposable Income</div>
+          <div class="val">₹{{ loan.disposable_income }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="loan-detail-stat">
+          <div class="lbl">Credit Score</div>
+          <div class="val {% if loan.credit_score >= 750 %}text-success{% elif loan.credit_score >= 650 %}text-primary{% else %}text-danger{% endif %}">
+            {{ loan.credit_score }}
+            <small class="fw-normal fs-6">
+              {% if loan.credit_score >= 750 %}(Excellent)
+              {% elif loan.credit_score >= 650 %}(Good)
+              {% else %}(Below min.){% endif %}
+            </small>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="loan-detail-stat">
+          <div class="lbl">DTI Ratio</div>
+          <div class="val {% if loan.dti_ratio and loan.dti_ratio <= 60 %}text-success{% else %}text-danger{% endif %}">
+            {% if loan.dti_ratio %}{{ loan.dti_ratio }}%{% else %}—{% endif %}
+          </div>
+        </div>
+      </div>
+      {% if total_interest %}
+      <div class="col-6 col-md-3">
+        <div class="loan-detail-stat">
+          <div class="lbl">Total Interest</div>
+          <div class="val text-danger">₹{{ total_interest }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="loan-detail-stat">
+          <div class="lbl">Total Payable</div>
+          <div class="val">₹{{ total_payable }}</div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if loan.decision_reason %}
+    <div class="alert {% if loan.status == 'APPROVED' or loan.status == 'DISBURSED' or loan.status == 'CLOSED' %}vb-alert-success{% elif loan.status == 'REJECTED' or loan.status == 'DEFAULTED' %}vb-alert-error{% else %}vb-alert-info{% endif %} mt-3 mb-0">
+      <strong>Decision:</strong> {{ loan.decision_reason }}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Repayment progress — only meaningful once the loan is disbursed -->
+  {% if repayment_started %}
+  <div class="vb-data-card mb-4">
+    <div class="head"><span class="title"><i class="bi bi-hourglass-split"></i> Repayment progress</span></div>
+    <div class="p-3">
+      <div class="d-flex flex-wrap gap-4 mb-3" style="font-size:13px;">
+        <div><span class="text-muted">Months paid:</span> <strong>{{ months_paid }} / {{ loan.tenure_months }}</strong></div>
+        <div><span class="text-muted">Months left:</span> <strong>{{ months_left }}</strong></div>
+        <div><span class="text-muted">Remaining amount:</span> <strong>₹{{ remaining_amount|floatformat:2 }}</strong></div>
+      </div>
+      {% if due_now %}
+      <div class="alert vb-alert-warning small mb-0">
+        <i class="bi bi-calendar-event"></i>
+        <strong>Month {{ next_due_month }} is due now</strong> (was due {{ next_due_date|date:"d M Y" }}).
+        Full unpaid list: {{ unpaid_months|join:", " }}
+      </div>
+      {% elif next_due_date %}
+      <div class="alert vb-alert-info small mb-0">
+        <i class="bi bi-calendar-check"></i>
+        <strong>Month {{ next_due_month }} due on {{ next_due_date|date:"d M Y" }}</strong>
+        — {{ days_until_due }} day{{ days_until_due|pluralize }} away. Customer gets reminders at 10/5/3/1 days before.
+      </div>
+      {% else %}
+      <div class="alert vb-alert-success small mb-0">
+        <i class="bi bi-check-circle"></i> All EMIs paid to date — no unpaid months.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% elif loan.status == 'APPROVED' %}
+  <div class="alert vb-alert-info small mb-4">
+    <i class="bi bi-info-circle"></i>
+    Repayment tracking (months paid/left, unpaid months) begins once this loan is disbursed.
+  </div>
+  {% endif %}
+
+  <!-- Action panel — only show when PENDING -->
+  {% if loan.status == 'PENDING' %}
+  <div class="row g-4 mb-4">
+
+    <!-- Approve -->
+    <div class="col-md-5">
+      <div class="vb-card p-4 h-100">
+        <h6 class="fw-bold mb-3 text-success"><i class="bi bi-check-circle"></i> Approve Loan</h6>
+        <p class="text-muted small mb-3">
+          Approving runs the eligibility engine. If the applicant passes all checks the loan will be marked
+          <strong>Approved</strong> and a success notification sent automatically.
+        </p>
+        <form id="approveForm">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="approve">
+          <button type="button" class="btn vb-btn-primary w-100" onclick="submitLoanAction('approve')">
+            <i class="bi bi-check-lg"></i> Approve &amp; Notify Customer
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Reject with dropdown -->
+    <div class="col-md-7">
+      <div class="vb-card p-4 h-100">
+        <h6 class="fw-bold mb-3 text-danger"><i class="bi bi-x-circle"></i> Reject Loan</h6>
+        <div class="mb-2">
+          <label class="form-label fw-semibold small">Rejection Reason</label>
+          <select class="form-select form-select-sm" id="rejectReasonSel" onchange="toggleCustomReason(this)">
+            <option value="">— Select a reason —</option>
+            {% for r in rejection_reasons %}
+            <option value="{{ r }}">{{ r }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3" id="customReasonWrap" style="display:none;">
+          <label class="form-label fw-semibold small">Custom Reason</label>
+          <input type="text" class="form-control form-control-sm" id="customReasonInput"
+                 placeholder="Describe the rejection reason…">
+        </div>
+        <p class="text-muted small mb-3">
+          Rejecting sends the customer a rejection notification plus an automatic referral message.
+        </p>
+        <button type="button" class="btn btn-outline-danger w-100"
+                onclick="submitLoanAction('reject')"
+                id="rejectBtn">
+          <i class="bi bi-x-lg"></i> Reject &amp; Notify Customer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result banner (shown after AJAX submit) -->
+  <div id="actionResult" class="alert d-none mb-4"></div>
+  {% endif %}
+
+  <!-- Amortization schedule (if approved/disbursed/closed/defaulted) -->
+  {% if schedule %}
+  <div class="vb-data-card">
+    <div class="head"><span class="title">Amortization Schedule</span></div>
+    {% if repayment_started %}
+    <div class="px-3 pt-2 pb-1 d-flex flex-wrap gap-3" style="font-size:11.5px;color:#6B7280;">
+      <span><span class="vb-badge badge-status-SUCCESS">Paid</span> already paid</span>
+      <span><span class="vb-badge" style="background:#FEF3C7;color:#92400E;">Due Now</span> customer should pay this next</span>
+      <span><span class="vb-badge badge-status-PENDING">Unpaid</span> upcoming, not yet due</span>
+    </div>
+    {% endif %}
+    <div style="max-height:420px;overflow-y:auto;">
+      <table class="vb-table-dense mb-0">
+        <thead style="position: sticky; top: 0; background:#fff;">
+          <tr>
+            <th>Month</th><th>EMI (₹)</th><th>Principal (₹)</th><th>Interest (₹)</th><th>Balance (₹)</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in schedule %}
+          <tr {% if due_now and row.month == next_due_month %}style="background:#FFFBEB;"{% endif %}>
+            <td class="text-muted">{{ row.month }}</td><td>{{ row.emi }}</td>
+            <td>{{ row.principal }}</td><td>{{ row.interest }}</td><td>{{ row.balance }}</td>
+            <td>
+              {% if due_now and row.month == next_due_month %}
+                <span class="vb-badge" style="background:#FEF3C7;color:#92400E;">Due Now</span>
+              {% elif row.paid == True %}
+                <span class="vb-badge badge-status-SUCCESS">Paid</span>
+              {% elif row.month == next_due_month and next_due_date %}
+                <span class="vb-badge badge-status-PENDING" title="Due {{ next_due_date|date:'d M Y' }}">Due {{ next_due_date|date:"d M" }}</span>
+              {% elif row.paid == False %}
+                <span class="vb-badge badge-status-PENDING">Unpaid</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+function toggleCustomReason(sel) {
+  const wrap = document.getElementById('customReasonWrap');
+  wrap.style.display = sel.value === 'Other — see custom reason' ? '' : 'none';
+}
+
+async function submitLoanAction(action) {
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const resultEl  = document.getElementById('actionResult');
+
+  let rejectReason = '';
+  let customReason  = '';
+  if (action === 'reject') {
+    rejectReason = document.getElementById('rejectReasonSel').value;
+    customReason  = document.getElementById('customReasonInput').value.trim();
+    if (!rejectReason) {
+      alert('Please select a rejection reason first.');
+      return;
+    }
+    if (!confirm('Reject this loan application and notify the customer?')) return;
+  } else {
+    if (!confirm('Approve this loan? This will run the eligibility engine and notify the customer.')) return;
+  }
+
+  const body = new URLSearchParams({
+    csrfmiddlewaretoken: csrfToken,
+    action: action,
+    reject_reason: rejectReason,
+    custom_reason: customReason,
+  });
+
+  try {
+    const res  = await fetch('{% url "loans:approve_loan" loan.application_id %}', {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body.toString(),
+    });
+    const data = await res.json();
+
+    resultEl.className = 'alert ' +
+      (data.status === 'approved' ? 'vb-alert-success' : 'vb-alert-warning');
+    resultEl.textContent = data.message;
+    resultEl.classList.remove('d-none');
+
+    document.querySelector('.row.g-4.mb-4').style.display = 'none';
+    const badge = document.querySelector('.vb-badge');
+    if (badge) {
+      badge.textContent = data.new_status;
+      badge.className   = 'vb-badge badge-status-' + data.new_status;
+    }
+    resultEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (err) {
+    resultEl.className = 'alert vb-alert-error';
+    resultEl.textContent = 'Error: ' + err.message;
+    resultEl.classList.remove('d-none');
+  }
+}
+</script>
+{% endblock %}

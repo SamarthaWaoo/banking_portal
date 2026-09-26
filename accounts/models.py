@@ -5,6 +5,7 @@ from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
 from django.utils import timezone
 
+# Validators
 pan_validator = RegexValidator(regex=r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$', message="Enter a valid PAN number")
 aadhaar_validator = RegexValidator(regex=r'^\d{12}$', message="Aadhaar number must be exactly 12 digits")
 phone_validator = RegexValidator(regex=r'^[6-9]\d{9}$', message="Enter a valid 10-digit mobile number")

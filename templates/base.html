@@ -7,15 +7,132 @@
   <title>{% block title %}SpendSmart Bank{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
-<body>
+{% if user.is_authenticated and not user.is_staff and not user.is_admin %}
+<body class="vb-app-body">
+<!-- ══════════════════════════════════════════════════════════════
+     APP SHELL — sidebar + topbar (authenticated customer views)
+     ══════════════════════════════════════════════════════════════ -->
+<div class="vb-app-shell">
+  <div class="vb-sidebar-backdrop" id="sidebarBackdrop"></div>
 
+  <aside class="vb-sidebar" id="appSidebar">
+    <a class="vb-sidebar-brand" href="{% url 'upi:dashboard' %}" style="gap:0;">
+      <i class="bi bi-bank"></i> Spend<span>Smart</span>
+    </a>
+
+    <div class="vb-sidebar-section-label">Banking</div>
+    <nav class="vb-sidebar-nav">
+      <a class="vb-sidebar-link {% if request.resolver_match.view_name == 'upi:dashboard' %}active{% endif %}"
+         href="{% url 'upi:dashboard' %}">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <a class="vb-sidebar-link {% if request.resolver_match.view_name == 'upi:send_money' %}active{% endif %}"
+         href="{% url 'upi:send_money' %}">
+        <i class="bi bi-send-fill"></i> Send Money
+      </a>
+      <a class="vb-sidebar-link {% if request.resolver_match.view_name == 'upi:transactions' %}active{% endif %}"
+         href="{% url 'upi:transactions' %}">
+        <i class="bi bi-clock-history"></i> Transactions
+      </a>
+      <a class="vb-sidebar-link {% if request.resolver_match.view_name == 'upi:budgets' %}active{% endif %}"
+         href="{% url 'upi:budgets' %}">
+        <i class="bi bi-piggy-bank"></i> Budgets
+      </a>
+      <a class="vb-sidebar-link {% if request.resolver_match.app_name == 'loans' %}active{% endif %}"
+         href="{% url 'loans:my_loans' %}">
+        <i class="bi bi-cash-coin"></i> Loans
+      </a>
+
+      <div class="vb-sidebar-section-label">Account</div>
+      <a class="vb-sidebar-link {% if request.resolver_match.view_name == 'accounts:profile' %}active{% endif %}"
+         href="{% url 'accounts:profile' %}">
+        <i class="bi bi-person-circle"></i> Profile
+      </a>
+      <a class="vb-sidebar-link" href="{% url 'landing' %}">
+        <i class="bi bi-house"></i> Home
+      </a>
+    </nav>
+
+    <div class="vb-sidebar-footer">
+      <div class="vb-sidebar-user">
+        <div class="vb-sidebar-avatar">{{ user.first_name|default:user.username|first|upper }}</div>
+        <div>
+          <div class="vb-sidebar-user-name">{{ user.first_name|default:user.username }}</div>
+          <div class="vb-sidebar-user-id">{{ user.customer_id }}</div>
+        </div>
+      </div>
+      <form action="{% url 'accounts:logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="vb-sidebar-logout">
+          <i class="bi bi-box-arrow-right"></i> Logout
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <div class="vb-app-main">
+    {% if request.resolver_match.view_name != 'landing' and request.resolver_match.view_name != 'upi:send_money' %}
+    <header class="vb-app-topbar">
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="vb-sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">
+          <i class="bi bi-list"></i>
+        </button>
+        <div class="vb-app-topbar-title-wrap">
+          <span class="vb-app-topbar-title">{% block page_title %}{% endblock %}</span>
+          {% block page_subtitle %}{% endblock %}
+        </div>
+      </div>
+      <div class="vb-app-topbar-right">
+        {% block page_actions %}{% endblock %}
+        <div class="vb-notif-wrap">
+          <button type="button" class="vb-notif-bell" id="notifBellBtn" aria-label="Notifications">
+            <i class="bi bi-bell"></i>
+            <span class="vb-notif-dot d-none" id="notifDot"></span>
+          </button>
+          <div class="vb-notif-dropdown d-none" id="notifDropdown">
+            <div class="vb-notif-dropdown-head">Notifications</div>
+            <div id="notifList">
+              <div class="text-center text-muted small py-4">Loading…</div>
+            </div>
+          </div>
+        </div>
+        {% if not user.pin_hash %}
+        <a href="{% url 'accounts:set_pin' %}" class="vb-app-topbar-badge text-decoration-none">
+          <i class="bi bi-exclamation-triangle-fill"></i> Set PIN
+        </a>
+        {% endif %}
+      </div>
+    </header>
+    {% endif %}
+
+    {% if messages %}
+    <div class="container mt-3">
+      {% for message in messages %}
+      <div class="alert alert-dismissible fade show
+        {% if message.tags == 'success' or 'success' in message.tags %}vb-alert-success
+        {% elif message.tags == 'error' or 'error' in message.tags %}vb-alert-error
+        {% elif message.tags == 'warning' or 'warning' in message.tags %}vb-alert-warning
+        {% else %}vb-alert-info{% endif %}" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <main class="vb-app-content">
+{% else %}
+<body>
+<!-- ══════════════════════════════════════════════════════════════
+     MARKETING / AUTH LAYOUT (landing, login, register, admin views)
+     ══════════════════════════════════════════════════════════════ -->
 <nav class="navbar navbar-expand-lg vb-navbar sticky-top">
   <div class="container">
-    <a class="navbar-brand vb-brand" href="{% url 'landing' %}">
-      <i class="bi bi-bank"></i> Spend<span>Smart</span>
+    <a class="navbar-brand vb-brand" href="{% url 'landing' %}" style="gap:0;">
+      <i class="bi bi-bank" style="color:var(--vb-navy);"></i> Spend<span>Smart</span>
     </a>
     <button class="navbar-toggler" type="button"
             data-bs-toggle="collapse" data-bs-target="#navMain">
@@ -24,54 +141,22 @@
     <div class="collapse navbar-collapse" id="navMain">
       <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
         {% if user.is_authenticated %}
-          {% if not user.is_admin %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'upi:dashboard' %}">
-              <i class="bi bi-speedometer2"></i> Dashboard
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'upi:send_money' %}">
-              <i class="bi bi-send"></i> Send
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'upi:transactions' %}">
-              <i class="bi bi-clock-history"></i> History
-            </a>
-          </li>
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button"
-               data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="bi bi-cash-coin"></i> Loans
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li>
-                <a class="dropdown-item" href="{% url 'loans:my_loans' %}">
-                  <i class="bi bi-file-earmark-text"></i> My Applications
-                </a>
-              </li>
-              <li>
-                <a class="dropdown-item" href="{% url 'loans:apply' %}">
-                  <i class="bi bi-plus-circle"></i> Apply for Loan
-                </a>
-              </li>
-            </ul>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'accounts:profile' %}">
-              <i class="bi bi-person-circle"></i>
-              {{ user.first_name|default:user.username }}
-            </a>
-          </li>
-          {% endif %}
           {% if user.is_staff or user.is_admin %}
+          {% if request.resolver_match.namespace != 'admin_dashboard' %}
           <li class="nav-item">
-            <a class="nav-link" style="color:var(--vb-gold);"
+            <a class="nav-link" style="color:var(--vb-navy);font-weight:600;"
                href="{% url 'admin_dashboard:dashboard' %}">
               <i class="bi bi-shield-lock-fill"></i> Admin Panel
             </a>
           </li>
+          {% endif %}
+          {% if request.resolver_match.view_name != 'landing' %}
+          <li class="nav-item ms-lg-2">
+            <a class="btn vb-btn-primary btn-sm" href="{% url 'landing' %}">
+              <i class="bi bi-speedometer2"></i> Go to Dashboard
+            </a>
+          </li>
+          {% endif %}
           {% endif %}
           <li class="nav-item ms-lg-2">
             <form action="{% url 'accounts:logout' %}" method="post" class="d-inline">
@@ -82,8 +167,8 @@
             </form>
           </li>
         {% else %}
-          <li class="nav-item">
-            <a class="nav-link text-muted small" href="{% url 'accounts:admin_login' %}">
+          <li class="nav-item ms-lg-2">
+            <a class="btn vb-btn-outline btn-sm" href="{% url 'accounts:admin_login' %}">
               <i class="bi bi-shield-lock"></i> Admin
             </a>
           </li>
@@ -106,7 +191,11 @@
 {% if messages %}
 <div class="container mt-3">
   {% for message in messages %}
-  <div class="alert vb-alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+  <div class="alert alert-dismissible fade show
+    {% if message.tags == 'success' or 'success' in message.tags %}vb-alert-success
+    {% elif message.tags == 'error' or 'error' in message.tags %}vb-alert-error
+    {% elif message.tags == 'warning' or 'warning' in message.tags %}vb-alert-warning
+    {% else %}vb-alert-info{% endif %}" role="alert">
     {{ message }}
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
@@ -114,17 +203,117 @@
 </div>
 {% endif %}
 
-<main>{% block content %}{% endblock %}</main>
+<main>
+{% endif %}
 
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1055">
-  <div id="toastContainer"></div>
+{% block content %}{% endblock %}
+
+{% if user.is_authenticated and not user.is_staff and not user.is_admin %}
+    </main>
+  </div>
 </div>
+
+<script>
+(function () {
+  const sidebar  = document.getElementById('appSidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  const toggle   = document.getElementById('sidebarToggle');
+  function closeSidebar() {
+    sidebar.classList.remove('vb-sidebar-open');
+    backdrop.classList.remove('vb-show');
+  }
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      sidebar.classList.toggle('vb-sidebar-open');
+      backdrop.classList.toggle('vb-show');
+    });
+  }
+  if (backdrop) backdrop.addEventListener('click', closeSidebar);
+})();
+
+// ── Notification bell ────────────────────────────────────────────────
+(function () {
+  const bellBtn   = document.getElementById('notifBellBtn');
+  const dot       = document.getElementById('notifDot');
+  const dropdown  = document.getElementById('notifDropdown');
+  const list      = document.getElementById('notifList');
+  if (!bellBtn) return;
+
+  const iconMap = {
+    'welcome': 'bi-hand-thumbs-up', 'approved': 'bi-check-circle',
+    'loan_approved': 'bi-cash-coin', 'loan_rejected': 'bi-x-circle',
+  };
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str == null ? '' : str;
+    return d.innerHTML;
+  }
+
+  function renderList(items) {
+    if (!items.length) {
+      list.innerHTML = '<div class="text-center text-muted small py-4">No notifications yet.</div>';
+      return;
+    }
+    list.innerHTML = items.map(function (n) {
+      const icon = n.icon || iconMap[n.icon] || 'bi-bell';
+      return '<div class="vb-notif-item">' +
+        '<div class="vb-notif-item-icon"><i class="bi ' + escapeHtml(icon) + '"></i></div>' +
+        '<div class="flex-grow-1">' +
+          '<div class="vb-notif-item-title">' + escapeHtml(n.title) + '</div>' +
+          '<div class="vb-notif-item-body">' + escapeHtml(n.body) + '</div>' +
+          '<div class="vb-notif-item-date">' + escapeHtml(n.created_at) + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function refreshUnreadDot() {
+    fetch("{% url 'upi:notifications_unread_count' %}", { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        dot.classList.toggle('d-none', !data.unread_count);
+      })
+      .catch(function () {});
+  }
+
+  function openDropdown() {
+    dropdown.classList.remove('d-none');
+    list.innerHTML = '<div class="text-center text-muted small py-4">Loading…</div>';
+    fetch("{% url 'upi:fetch_notifications' %}", { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        renderList(data.notifications || []);
+        dot.classList.add('d-none');
+      })
+      .catch(function () {
+        list.innerHTML = '<div class="text-center text-danger small py-4">Could not load notifications.</div>';
+      });
+  }
+
+  bellBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    const isOpen = !dropdown.classList.contains('d-none');
+    if (isOpen) { dropdown.classList.add('d-none'); return; }
+    openDropdown();
+  });
+  document.addEventListener('click', function (e) {
+    if (!dropdown.contains(e.target) && e.target !== bellBtn) {
+      dropdown.classList.add('d-none');
+    }
+  });
+
+  refreshUnreadDot();
+})();
+</script>
+{% else %}
+</main>
 
 <footer class="vb-footer mt-5">
   <div class="container py-4">
     <div class="row align-items-center">
       <div class="col-md-6 mb-3 mb-md-0">
-        <div class="vb-brand mb-1"><i class="bi bi-bank"></i> Spend<span>Smart</span></div>
+        <div class="vb-brand mb-1" style="gap:0;"><i class="bi bi-bank" style="color:var(--vb-navy);"></i> Spend<span>Smart</span></div>
         <p class="text-muted small mb-0">
           Simulated digital banking platform — no real money or KYC involved.
         </p>
@@ -133,8 +322,7 @@
         <div class="mb-1">
           <a href="{% url 'landing' %}" class="text-muted text-decoration-none me-3">Home</a>
           {% if user.is_authenticated %}
-            <a href="{% url 'upi:dashboard' %}" class="text-muted text-decoration-none me-3">Dashboard</a>
-            <a href="{% url 'accounts:profile' %}" class="text-muted text-decoration-none">Profile</a>
+            <a href="{% url 'admin_dashboard:dashboard' %}" class="text-muted text-decoration-none">Admin Panel</a>
           {% else %}
             <a href="{% url 'accounts:login' %}" class="text-muted text-decoration-none me-3">Login</a>
             <a href="{% url 'accounts:register' %}" class="text-muted text-decoration-none">Register</a>
@@ -145,6 +333,11 @@
     </div>
   </div>
 </footer>
+{% endif %}
+
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1055">
+  <div id="toastContainer"></div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 {% block extra_js %}{% endblock %}

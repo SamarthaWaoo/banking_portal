@@ -1,81 +1,103 @@
+
 {% extends "base.html" %}
 {% block title %}My Loans{% endblock %}
+{% block page_title %}My Loans{% endblock %}
 {% block content %}
 <div class="container py-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="vb-section-title mb-0"><i class="bi bi-file-earmark-text"></i> My Loan Applications</h4>
-    <a href="{% url 'loans:apply' %}" class="btn vb-btn-primary btn-sm">+ New Application</a>
-  </div>
-
-  <!-- Highlight any newly approved loans at the top -->
-  {% for loan in loans %}
-    {% if loan.status == 'APPROVED' %}
-    <div class="col-12">
-      <div class="alert vb-alert-success d-flex align-items-center gap-3 mb-0">
-        <i class="bi bi-check-circle-fill fs-3 text-success"></i>
+ 
+  {% if account_approved %}
+  <a href="{% url 'loans:apply' %}"
+     class="d-flex align-items-center gap-3 p-3 mb-3 text-decoration-none"
+     style="border:1.5px dashed var(--vb-navy); border-radius:12px; background:#FAFAFF; transition:background .15s;"
+     onmouseover="this.style.background='#F3E8FF';" onmouseout="this.style.background='#FAFAFF';">
+    <div style="width:44px;height:44px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#F3E8FF;">
+      <i class="bi bi-plus-lg" style="font-size:1.3rem;color:var(--vb-navy);"></i>
+    </div>
+    <div class="flex-grow-1">
+      <div class="fw-bold" style="color:#111827;">New Loan Application</div>
+      <div class="text-muted small">Personal, Home, Car or Education loan — check eligibility instantly</div>
+    </div>
+    <i class="bi bi-chevron-right text-muted"></i>
+  </a>
+  {% else %}
+  <a href="#" role="button" tabindex="0"
+     onclick="alert('Loan applications will be available once your account is approved by the admin.'); return false;"
+     class="d-flex align-items-center gap-3 p-3 mb-3 text-decoration-none"
+     title="Available once your account is approved"
+     style="border:1.5px dashed #D1D5DB; border-radius:12px; background:#FAFAFA; cursor:not-allowed; opacity:0.65;">
+    <div style="width:44px;height:44px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#F3F4F6;">
+      <i class="bi bi-plus-lg" style="font-size:1.3rem;color:#9CA3AF;"></i>
+    </div>
+    <div class="flex-grow-1">
+      <div class="fw-bold" style="color:#6B7280;">New Loan Application</div>
+      <div class="text-muted small">Available once your account is approved</div>
+    </div>
+    <i class="bi bi-lock-fill text-muted"></i>
+  </a>
+  {% endif %}
+ 
+  <div class="vb-data-card">
+ 
+    <div class="head">
+      <span class="title">My Loan Applications</span>
+      {% if account_approved %}
+      {% endif %}
+    </div>
+ 
+    {% if not account_approved %}
+    <div class="p-3">
+      <div class="alert alert-warning d-flex gap-3 align-items-start mb-0">
+        <i class="bi bi-hourglass-split fs-5 mt-1 text-warning"></i>
         <div>
-          <div class="fw-semibold">🎉 Congratulations! Your {{ loan.get_loan_type_display }} has been approved.</div>
-          <div class="small">
-            Application <strong>{{ loan.application_id }}</strong> &mdash;
-            ₹{{ loan.loan_amount }} at {{ loan.interest_rate }}% p.a. &mdash;
-            EMI ₹{{ loan.emi_amount }}/month
-            &mdash; <a href="{% url 'loans:loan_detail' loan.application_id %}" class="text-success fw-semibold">View details →</a>
-          </div>
+          <div class="fw-semibold">Account Under Verification</div>
+          <div class="small text-muted">Loan applications will be available once your account is approved by the admin.</div>
         </div>
       </div>
     </div>
     {% endif %}
-  {% endfor %}
-
-  <div class="row g-3">
+ 
     {% for loan in loans %}
-    <div class="col-md-6">
-      <a href="{% url 'loans:loan_detail' loan.application_id %}" class="vb-card p-4 d-block text-decoration-none text-dark
-        {% if loan.status == 'APPROVED' %}border border-success{% elif loan.status == 'REJECTED' %}border border-danger{% endif %}"
-         style="{% if loan.status == 'APPROVED' %}border-width:2px!important;{% endif %}">
+    <a href="{% url 'loans:loan_detail' loan.application_id %}"
+       class="d-flex align-items-center gap-3 p-3 text-decoration-none"
+       style="border-bottom:1px solid #F3F4F6; {% if forloop.counter|divisibleby:2 %}background:#FAFAFF;{% endif %}">
+ 
+      <div style="width:38px;height:38px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+        {% if loan.status == 'DISBURSED' %}background:#F0FDF4;
+        {% elif loan.status == 'APPROVED' %}background:#F0FDF4;
+        {% elif loan.status == 'REJECTED' %}background:#FEF2F2;
+        {% else %}background:#F3E8FF;{% endif %}">
+        <i class="bi bi-cash-coin" style="font-size:1.1rem;
+          {% if loan.status == 'DISBURSED' or loan.status == 'APPROVED' %}color:var(--vb-success);
+          {% elif loan.status == 'REJECTED' %}color:var(--vb-danger);
+          {% else %}color:var(--vb-navy);{% endif %}"></i>
+      </div>
+ 
+      <div class="flex-grow-1">
         <div class="d-flex justify-content-between align-items-start">
           <div>
-            <div class="fw-semibold">{{ loan.get_loan_type_display }}</div>
-            <div class="text-muted small">{{ loan.application_id }}</div>
+            <div class="text-muted small">{{ loan.get_loan_type_display }} &middot; {{ loan.application_id }}</div>
+            <div class="fw-bold" style="font-size:1.15rem;color:#111827;">₹{{ loan.loan_amount }}</div>
           </div>
           <span class="vb-badge badge-status-{{ loan.status }}">{{ loan.get_status_display }}</span>
         </div>
-        <div class="mt-3 d-flex justify-content-between">
-          <div>
-            <div class="text-muted small">Amount</div>
-            <div class="fw-bold" style="color: var(--vb-navy);">₹{{ loan.loan_amount }}</div>
-          </div>
-          <div>
-            <div class="text-muted small">Tenure</div>
-            <div class="fw-bold">{{ loan.tenure_months }} months</div>
-          </div>
-          <div>
-            <div class="text-muted small">Applied</div>
-            <div class="fw-bold">{{ loan.applied_at|date:"d M Y" }}</div>
-          </div>
+        <div class="text-muted" style="font-size:0.78rem;margin-top:2px;">
+          {{ loan.tenure_months }} months &middot; Applied {{ loan.applied_at|date:"d M Y" }}
         </div>
-        {% if loan.status == 'APPROVED' %}
-        <div class="mt-2 small text-success fw-semibold">
-          <i class="bi bi-check-circle-fill"></i> Approved — EMI ₹{{ loan.emi_amount }}/month
-        </div>
-        {% elif loan.status == 'REJECTED' %}
-        <div class="mt-2 small text-danger">
-          <i class="bi bi-x-circle-fill"></i> {{ loan.decision_reason|truncatechars:60 }}
-        </div>
-        {% elif loan.status == 'PENDING' %}
-        <div class="mt-2 small text-warning">
-          <i class="bi bi-hourglass-split"></i> Under review — decision pending
-        </div>
-        {% endif %}
-      </a>
-    </div>
-    {% empty %}
-    <div class="col-12">
-      <div class="vb-card p-5 text-center text-muted">
-        No loan applications yet. <a href="{% url 'loans:apply' %}">Apply for your first loan</a>.
       </div>
+    </a>
+    {% empty %}
+    <div class="p-5 text-center text-muted">
+      <i class="bi bi-file-earmark-text" style="font-size:2.5rem;opacity:0.35;"></i>
+      {% if account_approved %}
+        <p class="mt-3 mb-0">No loan applications yet.</p>
+        <p class="small text-muted"><a href="{% url 'loans:apply' %}">Apply for your first loan</a>.</p>
+      {% else %}
+        <p class="mt-3 mb-0">No loan applications yet. Apply once your account is approved.</p>
+      {% endif %}
     </div>
     {% endfor %}
-  </div><!-- /row -->
+ 
+  </div>
 </div>
 {% endblock %}
+ 

@@ -3,37 +3,21 @@
 {% block content %}
 <div class="vb-auth-wrap">
   <div class="container">
-    <div class="vb-auth-card row g-0 mx-auto" style="max-width:720px;">
+    <div class="mx-auto" style="max-width:400px;position:relative;">
 
-      <!-- Side panel -->
-      <div class="col-lg-5 vb-auth-side d-none d-lg-flex flex-column justify-content-center"
-           style="background:linear-gradient(135deg,#0a2540 60%,#c9a227);">
-        <i class="bi bi-shield-lock-fill" style="font-size:3rem;color:var(--vb-gold);"></i>
-        <h3 class="mt-3">Admin Portal</h3>
-        <p class="text-white-50 small">
-          This portal is restricted to authorised bank staff.
-          Your session is logged for audit purposes.
-        </p>
-        <p class="mt-3 small">
-          <a href="{% url 'accounts:admin_register' %}" class="text-warning">
-            <i class="bi bi-person-plus"></i> Create admin account
-          </a>
-        </p>
-        <p class="small">
-          <a href="{% url 'accounts:login' %}" class="text-white-50">
-            ← Customer login
-          </a>
-        </p>
-      </div>
+      <div style="background:#fff;border:1px solid var(--vb-border);border-radius:var(--vb-radius-lg);padding:2rem 1.75rem;box-shadow:var(--vb-shadow-lg);position:relative;">
 
-      <!-- Login form -->
-      <div class="col-lg-7 p-4 p-lg-5 d-flex flex-column justify-content-center">
-        <div class="text-center mb-4">
-          <span class="badge bg-danger mb-2">STAFF ONLY</span>
-          <h4 class="vb-section-title">Admin Login</h4>
+        <span class="badge" style="position:absolute;top:16px;right:16px;background:#FEF2F2;color:var(--vb-danger);font-size:0.68rem;font-weight:600;padding:0.25rem 0.6rem;">
+          STAFF ONLY
+        </span>
+
+        <div style="width:40px;height:40px;border-radius:9px;background:#F3E8FF;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+          <i class="bi bi-shield-lock-fill" style="color:var(--vb-navy);font-size:1.1rem;"></i>
         </div>
 
-        <!-- ✅ Show the exact reason the login failed -->
+        <h4 class="fw-bold mb-1" style="color:#111827;">Welcome back, Admin</h4>
+        <p class="text-muted small mb-4">Sign in to access the operations dashboard</p>
+
         {% if error %}
         <div class="alert vb-alert-error mb-3">
           <i class="bi bi-exclamation-triangle"></i> {{ error }}
@@ -64,16 +48,23 @@
               </button>
             </div>
           </div>
-          <button type="submit" class="btn vb-btn-primary w-100 py-2">
+          <button type="submit" class="btn vb-btn-primary w-100 py-2 mb-3">
             <i class="bi bi-shield-lock"></i> Login as Admin
           </button>
         </form>
 
-        <p class="text-center small text-muted mt-3">
+        <p class="text-center small mb-0">
           <a href="{% url 'accounts:admin_register' %}">Create admin account</a>
           &nbsp;·&nbsp;
           <a href="{% url 'accounts:login' %}">Customer login</a>
         </p>
+
+        <div class="text-center mt-3 pt-3" style="border-top:1px solid #F3F4F6;">
+          <span class="text-muted" style="font-size:0.72rem;">
+            <i class="bi bi-lock"></i> Session logged for audit &middot; Restricted to authorised staff
+          </span>
+        </div>
+
       </div>
     </div>
   </div>

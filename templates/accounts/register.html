@@ -1,110 +1,208 @@
 {% extends "base.html" %}
 {% block title %}Open an Account — SpendSmart Bank{% endblock %}
 {% block content %}
-<div class="container py-5">
-  <div class="vb-auth-card row g-0 mx-auto" style="max-width:950px;">
+<style>
+.vb-reg-card { background:#fff; border:1px solid var(--vb-border); border-radius:var(--vb-radius-lg); box-shadow:var(--vb-shadow-lg); overflow:hidden; }
+.vb-reg-intro { padding:1.5rem 2rem; border-bottom:1px solid var(--vb-border); }
+.vb-reg-intro h4 { font-weight:700; color:#111827; margin-bottom:0.3rem; }
+.vb-reg-intro p { color:#4B5563; font-size:0.88rem; margin-bottom:0; }
 
-    <!-- Side panel -->
-    <div class="col-lg-5 vb-auth-side d-none d-lg-flex flex-column justify-content-center">
-      <i class="bi bi-shield-check" style="font-size:3rem;color:var(--vb-gold);"></i>
-      <h3 class="mt-3">Join SpendSmart Bank</h3>
-      <p class="text-white-50">Open a secure digital account in minutes.</p>
-      <ul class="list-unstyled small text-white-50 mt-3">
-        <li class="mb-2"><i class="bi bi-check-circle text-warning"></i> Free savings account instantly</li>
-        <li class="mb-2"><i class="bi bi-check-circle text-warning"></i> UPI ID generated automatically</li>
-        <li class="mb-2"><i class="bi bi-check-circle text-warning"></i> Apply for loans right away</li>
-      </ul>
+.vb-stepper { display:flex; align-items:center; padding:1.4rem 2.2rem 0.4rem; }
+.vb-step-col { display:flex; flex-direction:column; align-items:center; flex:1; }
+.vb-step-circle {
+  width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:0.82rem; font-weight:600; border:1.5px solid var(--vb-border); background:#fff; color:#9CA3AF;
+  transition: all 0.2s ease;
+}
+.vb-step-col.done .vb-step-circle { background:var(--vb-navy); border-color:var(--vb-navy); color:#fff; }
+.vb-step-col.active .vb-step-circle { border-color:var(--vb-navy); color:var(--vb-navy); }
+.vb-step-label { font-size:0.72rem; margin-top:0.4rem; color:#9CA3AF; font-weight:500; }
+.vb-step-col.done .vb-step-label, .vb-step-col.active .vb-step-label { color:var(--vb-navy); }
+.vb-step-line { flex:1; height:2px; background:var(--vb-border); margin-bottom:1.15rem; transition: background 0.2s ease; }
+.vb-step-line.done { background:var(--vb-navy); }
+
+.vb-stage { display:none; padding:1.5rem 2.2rem 2rem; }
+.vb-stage.active { display:block; }
+.vb-stage h6 { font-weight:700; color:#111827; margin-bottom:1rem; }
+
+.vb-stage-nav { display:flex; gap:0.6rem; margin-top:1.5rem; }
+
+/* Rounded rectangle fields — black border by default, purple on focus/click */
+#registerForm .form-control,
+#registerForm .form-select {
+  border: 1.5px solid #111827;
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+#registerForm .form-control:focus,
+#registerForm .form-select:focus {
+  border-color: var(--vb-navy);
+  box-shadow: 0 0 0 0.2rem rgba(124,58,237,0.15);
+}
+#registerForm .input-group .btn.eye-toggle {
+  border: 1.5px solid #111827;
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+}
+#registerForm .input-group:focus-within .form-control,
+#registerForm .input-group:focus-within .btn.eye-toggle {
+  border-color: var(--vb-navy);
+}
+</style>
+
+<div class="container py-5">
+  <div class="vb-reg-card mx-auto" style="max-width:640px;">
+
+    <!-- Intro banner -->
+    <div class="vb-reg-intro">
+      <h4>Join SpendSmart Bank</h4>
+      <p>
+        Open a secure digital account in minutes — free savings account, UPI ID generated
+        automatically, deposit credited after approval, and you can apply for loans right away.
+      </p>
     </div>
 
-    <!-- Form -->
-    <div class="col-lg-7 p-4 p-lg-5">
-      <h4 class="vb-section-title mb-1">Create your account</h4>
-      <p class="text-muted small mb-4">All fields are required for KYC simulation.</p>
+    <!-- Horizontal progress stepper -->
+    <div class="vb-stepper">
+      <div class="vb-step-col active" id="stepCol1">
+        <div class="vb-step-circle" id="stepCircle1">1</div>
+        <div class="vb-step-label">Personal</div>
+      </div>
+      <div class="vb-step-line" id="stepLine1"></div>
+      <div class="vb-step-col" id="stepCol2">
+        <div class="vb-step-circle" id="stepCircle2">2</div>
+        <div class="vb-step-label">KYC</div>
+      </div>
+      <div class="vb-step-line" id="stepLine2"></div>
+      <div class="vb-step-col" id="stepCol3">
+        <div class="vb-step-circle" id="stepCircle3">3</div>
+        <div class="vb-step-label">Security</div>
+      </div>
+    </div>
 
-      <!-- GENERAL ERRORS (non-field) -->
-      {% if form.non_field_errors %}
-      <div class="alert vb-alert-error mb-3">
+    <!-- GENERAL ERRORS (non-field) -->
+    {% if form.non_field_errors %}
+    <div class="px-4 pt-3">
+      <div class="alert vb-alert-error mb-0">
         {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
       </div>
-      {% endif %}
+    </div>
+    {% endif %}
 
-      <form method="post" novalidate>
-        {% csrf_token %}
+    <form method="post" novalidate id="registerForm">
+      {% csrf_token %}
+
+      <!-- STAGE 1: Personal details -->
+      <div class="vb-stage active" id="stage1">
+        <h6>Personal details</h6>
+
+        <!-- Demo autofill button — fills every field across all 3 stages up front -->
+        <div class="d-flex gap-2 mb-3">
+          <button type="button" class="btn btn-outline-secondary w-100 py-2" id="demoFillBtn" onclick="fillDemoData()">
+            <i class="bi bi-lightning-charge"></i> Fill Demo Data
+          </button>
+        </div>
+        <div id="demoNotice" class="alert alert-warning small mb-3 d-none">
+          <i class="bi bi-info-circle-fill"></i>
+          <strong>Demo account pre-filled.</strong>
+          Password set to <code id="demoPwDisplay"></code> — shown only here. You'll need to enter it manually on the Security step, then submit.
+        </div>
+
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">First Name</label>
             {{ form.first_name }}
             {% if form.first_name.errors %}
-            <div class="text-danger small mt-1">
-              {% for e in form.first_name.errors %}{{ e }}{% endfor %}
-            </div>
+            <div class="text-danger small mt-1">{% for e in form.first_name.errors %}{{ e }}{% endfor %}</div>
             {% endif %}
           </div>
           <div class="col-md-6">
             <label class="form-label">Last Name</label>
             {{ form.last_name }}
             {% if form.last_name.errors %}
-            <div class="text-danger small mt-1">
-              {% for e in form.last_name.errors %}{{ e }}{% endfor %}
-            </div>
+            <div class="text-danger small mt-1">{% for e in form.last_name.errors %}{{ e }}{% endfor %}</div>
             {% endif %}
           </div>
           <div class="col-md-6">
             <label class="form-label">Username</label>
             {{ form.username }}
             {% if form.username.errors %}
-            <div class="text-danger small mt-1">
-              {% for e in form.username.errors %}{{ e }}{% endfor %}
-            </div>
+            <div class="text-danger small mt-1">{% for e in form.username.errors %}{{ e }}{% endfor %}</div>
             {% endif %}
           </div>
           <div class="col-md-6">
             <label class="form-label">Email</label>
             {{ form.email }}
             {% if form.email.errors %}
-            <div class="text-danger small mt-1">
-              {% for e in form.email.errors %}{{ e }}{% endfor %}
-            </div>
+            <div class="text-danger small mt-1">{% for e in form.email.errors %}{{ e }}{% endfor %}</div>
             {% endif %}
           </div>
+        </div>
+        <div class="vb-stage-nav">
+          <button type="button" class="btn vb-btn-primary px-4 ms-auto" onclick="if (validateStage(1)) goToStage(2);">
+            Continue <i class="bi bi-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- STAGE 2: KYC identifiers -->
+      <div class="vb-stage" id="stage2">
+        <h6>KYC identifiers</h6>
+        <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Phone Number</label>
             {{ form.phone_number }}
             {% if form.phone_number.errors %}
-            <div class="text-danger small mt-1">
-              {% for e in form.phone_number.errors %}{{ e }}{% endfor %}
-            </div>
+            <div class="text-danger small mt-1">{% for e in form.phone_number.errors %}{{ e }}{% endfor %}</div>
             {% endif %}
           </div>
           <div class="col-md-6">
             <label class="form-label">Date of Birth</label>
             {{ form.date_of_birth }}
             {% if form.date_of_birth.errors %}
-            <div class="text-danger small mt-1">
-              {% for e in form.date_of_birth.errors %}{{ e }}{% endfor %}
-            </div>
+            <div class="text-danger small mt-1">{% for e in form.date_of_birth.errors %}{{ e }}{% endfor %}</div>
             {% endif %}
           </div>
           <div class="col-md-6">
             <label class="form-label">PAN Number</label>
             {{ form.pan_number }}
             {% if form.pan_number.errors %}
-            <div class="text-danger small mt-1">
-              {% for e in form.pan_number.errors %}{{ e }}{% endfor %}
-            </div>
+            <div class="text-danger small mt-1">{% for e in form.pan_number.errors %}{{ e }}{% endfor %}</div>
             {% endif %}
           </div>
           <div class="col-md-6">
             <label class="form-label">Aadhaar Number</label>
             {{ form.aadhaar_number }}
             {% if form.aadhaar_number.errors %}
-            <div class="text-danger small mt-1">
-              {% for e in form.aadhaar_number.errors %}{{ e }}{% endfor %}
-            </div>
+            <div class="text-danger small mt-1">{% for e in form.aadhaar_number.errors %}{{ e }}{% endfor %}</div>
             {% endif %}
           </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">
+              Initial Deposit Amount (₹)
+              <span class="text-muted fw-normal small">— credited after admin approval</span>
+            </label>
+            {{ form.initial_balance }}
+            {% if form.initial_balance.errors %}
+            <div class="text-danger small mt-1">{% for e in form.initial_balance.errors %}{{ e }}{% endfor %}</div>
+            {% endif %}
+            <div class="form-text"><i class="bi bi-info-circle"></i> Minimum ₹500. Your account will be active once an admin reviews and approves your request.</div>
+          </div>
+        </div>
+        <div class="vb-stage-nav">
+          <button type="button" class="btn vb-btn-outline px-4" onclick="goToStage(1)">
+            <i class="bi bi-arrow-left"></i> Back
+          </button>
+          <button type="button" class="btn vb-btn-primary px-4 ms-auto" onclick="if (validateStage(2)) goToStage(3);">
+            Continue <i class="bi bi-arrow-right"></i>
+          </button>
+        </div>
+      </div>
 
-          <!-- Password with eye toggle — no inline errors -->
+      <!-- STAGE 3: Security -->
+      <div class="vb-stage" id="stage3">
+        <h6>Deposit &amp; security</h6>
+        <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Password</label>
             <div class="input-group">
@@ -116,8 +214,6 @@
               </button>
             </div>
           </div>
-
-          <!-- Confirm Password with eye toggle — no inline errors -->
           <div class="col-md-6">
             <label class="form-label">Confirm Password</label>
             <div class="input-group">
@@ -131,28 +227,80 @@
           </div>
         </div>
 
-        <!-- PASSWORD ERRORS IN ONE PLACE AT BOTTOM -->
         {% if form.password1.errors or form.password2.errors %}
-        <div class="alert vb-alert-error mt-3 mb-3">
+        <div class="alert vb-alert-error mt-3 mb-0">
           <strong>Password issues:</strong>
           {% for e in form.password1.errors %}<div>{{ e }}</div>{% endfor %}
           {% for e in form.password2.errors %}<div>{{ e }}</div>{% endfor %}
         </div>
         {% endif %}
 
-        <button type="submit" class="btn vb-btn-primary w-100 mt-4 py-2">
-          Create Account
-        </button>
-      </form>
-      <p class="text-center small text-muted mt-3">
-        Already have an account? <a href="{% url 'accounts:login' %}">Login</a>
-      </p>
-    </div>
+        <!-- Demo password hint (values already filled from stage 1's Fill Demo Data button) -->
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" class="btn vb-btn-primary w-100 py-2">
+            <i class="bi bi-person-check"></i> Create Account
+          </button>
+        </div>
+
+        <div class="vb-stage-nav">
+          <button type="button" class="btn vb-btn-outline px-4" onclick="goToStage(2)">
+            <i class="bi bi-arrow-left"></i> Back
+          </button>
+        </div>
+      </div>
+
+    </form>
+    <p class="text-center small text-muted pb-4">
+      Already have an account? <a href="{% url 'accounts:login' %}">Login</a>
+    </p>
   </div>
 </div>
 
 <script>
-// Universal eye-toggle
+// ── Horizontal stepper navigation ─────────────────────────────────────────
+function goToStage(n) {
+  document.querySelectorAll('.vb-stage').forEach((el, i) => {
+    el.classList.toggle('active', i === n - 1);
+  });
+  for (let i = 1; i <= 3; i++) {
+    const col = document.getElementById('stepCol' + i);
+    col.classList.remove('active', 'done');
+    if (i < n)      col.classList.add('done');
+    else if (i === n) col.classList.add('active');
+  }
+  for (let i = 1; i <= 2; i++) {
+    document.getElementById('stepLine' + i).classList.toggle('done', i < n);
+  }
+  document.querySelector('.vb-reg-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Stage validation — blocks Continue until the current stage's required
+//    fields are actually filled in and valid (HTML5 constraint validation) ──
+function validateStage(n) {
+  const stageEl = document.getElementById('stage' + n);
+  const inputs = stageEl.querySelectorAll('input[required], select[required], textarea[required]');
+  for (const inp of inputs) {
+    if (!inp.checkValidity()) {
+      inp.reportValidity();
+      inp.focus();
+      return false;
+    }
+  }
+  return true;
+}
+
+// If the form was re-rendered with field errors, jump to whichever stage has them
+(function jumpToErrorStage() {
+  const stage1Fields = ['{{ form.first_name.errors|yesno:"1," }}', '{{ form.last_name.errors|yesno:"1," }}', '{{ form.username.errors|yesno:"1," }}', '{{ form.email.errors|yesno:"1," }}'];
+  const stage2Fields = ['{{ form.phone_number.errors|yesno:"1," }}', '{{ form.date_of_birth.errors|yesno:"1," }}', '{{ form.pan_number.errors|yesno:"1," }}', '{{ form.aadhaar_number.errors|yesno:"1," }}', '{{ form.initial_balance.errors|yesno:"1," }}'];
+  const stage3Fields = ['{{ form.password1.errors|yesno:"1," }}', '{{ form.password2.errors|yesno:"1," }}'];
+
+  if (stage2Fields.includes('1')) { goToStage(2); return; }
+  if (stage3Fields.includes('1')) { goToStage(3); return; }
+  if (stage1Fields.includes('1')) { goToStage(1); return; }
+})();
+
+// ── Eye toggles ─────────────────────────────────────────────────────────
 document.querySelectorAll('.eye-toggle').forEach(btn => {
   btn.addEventListener('click', function () {
     const field = document.getElementById(this.dataset.target);
@@ -163,5 +311,43 @@ document.querySelectorAll('.eye-toggle').forEach(btn => {
     icon.classList.toggle('bi-eye-slash',  isHidden);
   });
 });
+
+// ── Demo data autofill ───────────────────────────────────────────────────
+function fillDemoData() {
+  const n    = Math.floor(1000 + Math.random() * 9000);
+  const letters = 'BCDFGHJKLMNPQRSTVWXYZ';
+  const pass = 'Bank$' + letters[n % 21] + letters[(n+3) % 21] + letters[(n+7) % 21] + '9!';
+
+  const pan     = 'TESTP' + String(n) + 'Z';
+  const aadhaar = '9' + String(n).padStart(5,'0') + '000000';
+  const phone   = '9' + String(n).padStart(9, '8');
+
+  const set = (name, val) => {
+    const el = document.querySelector('[name="' + name + '"]');
+    if (el) el.value = val;
+  };
+
+  set('first_name',     'Demo');
+  set('last_name',       'User');
+  set('username',        'demouser' + n);
+  set('email',           'demo' + n + '@example.com');
+  set('phone_number',    phone);
+  set('date_of_birth',   '1995-06-15');
+  set('pan_number',      pan);
+  set('aadhaar_number',  aadhaar);
+  set('initial_balance', '10000');
+
+  document.getElementById('demoPwDisplay').textContent = pass;
+  document.getElementById('demoNotice').classList.remove('d-none');
+
+  ['regPw1','regPw2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.type = 'text';
+    if (el) el.value = '';
+  });
+
+  document.getElementById('demoFillBtn').innerHTML =
+    '<i class="bi bi-check-circle-fill text-success"></i> Data filled — enter password above';
+}
 </script>
 {% endblock %}

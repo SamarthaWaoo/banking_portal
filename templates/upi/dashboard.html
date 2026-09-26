@@ -1,94 +1,432 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — SpendSmart Bank{% endblock %}
+{% block page_title %}Welcome, {{ user.first_name|default:user.username }}{% if is_admin_view %} <span class="badge bg-danger" style="font-size:0.55rem;vertical-align:middle;">ADMIN</span>{% endif %}{% endblock %}
 {% block content %}
 <div class="container py-4">
-  <h4 class="vb-section-title mb-4">Welcome, {{ user.first_name|default:user.username }} 👋</h4>
 
-  <div class="row g-4">
-    <!-- Accounts -->
-    <div class="col-lg-4">
-      {% for acc in accounts %}
-      <div class="vb-balance-card mb-3">
-        <div class="d-flex justify-content-between align-items-start">
-          <div>
-            <div class="small text-white-50">{{ acc.get_account_type_display }}</div>
-            <div class="vb-card-number mt-1">{{ acc.account_number|slice:":4" }} XXXX XXXX {{ acc.account_number|slice:"10:" }}</div>
-          </div>
-          <i class="bi bi-credit-card-2-front" style="font-size: 1.6rem;"></i>
-        </div>
-        <div class="mt-4">
-          <div class="small text-white-50">Available Balance</div>
-          <div class="vb-balance-amount">₹{{ acc.balance }}</div>
-        </div>
-        <div class="mt-3 small text-white-50">UPI ID: {{ acc.upi_id }}</div>
-      </div>
-      {% empty %}
-      <div class="vb-card p-4 text-center text-muted">No accounts linked yet.</div>
-      {% endfor %}
+{% if is_admin_view %}
+  <!-- ══════════════════════════════════════════════════════════════
+       ADMIN PERSONAL DASHBOARD — shown instead of banking tiles
+       because a staff/admin account has no banking data of its own.
+       ══════════════════════════════════════════════════════════════ -->
+
+  <div class="vb-data-card mb-4">
+    <div class="head">
+      <span class="title"><i class="bi bi-person-badge"></i> Account details</span>
     </div>
-
-    <!-- Quick Actions + Recent Transactions -->
-    <div class="col-lg-8">
-      <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3">
-          <a href="{% url 'upi:send_money' %}" class="vb-card p-3 text-center d-block text-decoration-none">
-            <i class="bi bi-send-fill" style="font-size: 1.4rem; color: var(--vb-navy);"></i>
-            <div class="small mt-2 text-dark">Send Money</div>
-          </a>
+    <div class="p-4">
+      <div class="row g-4">
+        <div class="col-md-6 col-lg-3">
+          <div class="text-muted small mb-1">Username</div>
+          <div class="fw-semibold">{{ user.username }}</div>
         </div>
-        <div class="col-6 col-md-3">
-          <a href="{% url 'upi:transactions' %}" class="vb-card p-3 text-center d-block text-decoration-none">
-            <i class="bi bi-clock-history" style="font-size: 1.4rem; color: var(--vb-navy);"></i>
-            <div class="small mt-2 text-dark">History</div>
-          </a>
+        <div class="col-md-6 col-lg-3">
+          <div class="text-muted small mb-1">Full name</div>
+          <div class="fw-semibold">{{ user.get_full_name|default:"—" }}</div>
         </div>
-        <div class="col-6 col-md-3">
-          <a href="{% url 'loans:my_loans' %}" class="vb-card p-3 text-center d-block text-decoration-none">
-            <i class="bi bi-cash-coin" style="font-size: 1.4rem; color: var(--vb-navy);"></i>
-            <div class="small mt-2 text-dark">My Loans</div>
-          </a>
+        <div class="col-md-6 col-lg-3">
+          <div class="text-muted small mb-1">Email</div>
+          <div class="fw-semibold">{{ user.email|default:"—" }}</div>
         </div>
-        <div class="col-6 col-md-3">
-          <a href="{% url 'upi:download_statement' %}" class="vb-card p-3 text-center d-block text-decoration-none">
-            <i class="bi bi-file-earmark-arrow-down" style="font-size: 1.4rem; color: var(--vb-navy);"></i>
-            <div class="small mt-2 text-dark">Statement</div>
-          </a>
+        <div class="col-md-6 col-lg-3">
+          <div class="text-muted small mb-1">Role</div>
+          <div class="fw-semibold"><span class="badge bg-danger">Admin</span></div>
         </div>
-      </div>
-
-      <!-- Recent Transactions -->
-      <div class="vb-card p-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="mb-0">Recent Transactions</h6>
-          <a href="{% url 'upi:transactions' %}" class="small">View all</a>
+        <div class="col-md-6 col-lg-3">
+          <div class="text-muted small mb-1">Admin since</div>
+          <div class="fw-semibold">{{ user.date_joined|date:"d M Y" }}</div>
         </div>
-        {% for t in recent_txns %}
-        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
-          <div>
-            <div class="fw-semibold small">
-              {% if t.sender_account.user == user %}
-                <i class="bi bi-arrow-up-circle text-danger"></i> Sent {{ t.note|default:"Transfer" }}
-              {% else %}
-                <i class="bi bi-arrow-down-circle text-success"></i> Received {{ t.note|default:"Transfer" }}
-              {% endif %}
-            </div>
-            <div class="text-muted small">{{ t.timestamp|date:"d M Y, H:i" }} • {{ t.reference_id }}</div>
-          </div>
-          <div class="text-end">
-            <div class="fw-bold {% if t.sender_account.user == user %}text-danger{% else %}text-success{% endif %}">
-              {% if t.sender_account.user == user %}-{% else %}+{% endif %}₹{{ t.amount }}
-            </div>
-            <span class="vb-badge badge-status-{{ t.status }}">{{ t.status }}</span>
-            {% if t.is_flagged %}
-              <span class="badge bg-warning text-dark ms-1">Flagged</span>
-            {% endif %}
+        <div class="col-md-6 col-lg-3">
+          <div class="text-muted small mb-1">Last login</div>
+          <div class="fw-semibold">
+            {% if user.last_login %}{{ user.last_login|date:"d M Y, h:i A" }}{% else %}—{% endif %}
           </div>
         </div>
-        {% empty %}
-        <p class="text-muted small mb-0">No transactions yet. <a href="{% url 'upi:send_money' %}">Send your first payment</a>.</p>
-        {% endfor %}
+        <div class="col-md-6 col-lg-3">
+          <div class="text-muted small mb-1">Account status</div>
+          <div class="fw-semibold">
+            {% if user.is_active %}<span class="vb-badge badge-status-SUCCESS">Active</span>
+            {% else %}<span class="vb-badge badge-status-FAILED">Inactive</span>{% endif %}
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <div class="text-muted small mb-1">Customer ID</div>
+          <div class="fw-semibold text-muted">{{ user.customer_id|default:"—" }}</div>
+        </div>
       </div>
     </div>
   </div>
+
+  <div class="vb-cta-v2 p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+      <div class="fw-bold" style="font-size:1.05rem;">Admin Operations Console</div>
+      <div class="text-muted small">Manage users, accounts, transactions, loans, and messaging.</div>
+    </div>
+    <a href="{% url 'admin_dashboard:dashboard' %}" class="btn vb-btn-primary px-4">
+      <i class="bi bi-speedometer2"></i> Go to Console
+    </a>
+  </div>
+
+{% else %}
+  {% if pending_accounts %}
+  <div class="alert alert-warning d-flex align-items-start gap-3 mb-4" role="alert">
+    <i class="bi bi-hourglass-split fs-4 mt-1 text-warning"></i>
+    <div>
+      <div class="fw-semibold">Account Pending Approval</div>
+      <div class="small">
+        Your account is awaiting admin review. Once approved, your initial deposit of
+        <strong>₹{{ pending_accounts.0.requested_balance }}</strong> will be credited
+        and you'll be able to transact freely.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if newly_approved %}
+  <div class="alert alert-success d-flex align-items-start gap-3 mb-4" role="alert">
+    <i class="bi bi-check-circle-fill fs-4 mt-1 text-success"></i>
+    <div>
+      <div class="fw-semibold">Account Approved</div>
+      <div class="small">
+        Your account has been approved and <strong>₹{{ newly_approved.balance }}</strong>
+        has been credited. You can now send money, apply for loans, and use all features.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Account type tabs — only rendered if user has more than one account type -->
+  {% if accounts|length > 1 %}
+  <div class="vb-acc-tabs">
+    {% for acc in accounts %}
+    <a href="#acc-{{ acc.id }}" class="vb-acc-tab {% if forloop.first %}active{% endif %}">
+      {{ acc.get_account_type_display }}
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% for acc in accounts %}
+  <div id="acc-{{ acc.id }}">
+    {% if acc.is_approved %}
+    <!-- Balance strip -->
+    <div class="vb-balance-strip">
+      <div>
+        <div class="label">{{ acc.get_account_type_display }} account</div>
+        <div class="acc-meta">
+          {{ acc.account_number|slice:":4" }} XXXX XXXX {{ acc.account_number|slice:"10:" }}
+          &nbsp;&middot;&nbsp; UPI: {{ acc.upi_id }}
+        </div>
+      </div>
+      <div class="text-end">
+        <div class="label">Available balance</div>
+        <div class="amount">₹{{ acc.balance }}</div>
+      </div>
+      <div>
+        <button type="button" class="btn vb-btn-outline btn-sm"
+                data-bs-toggle="modal" data-bs-target="#addAmountModal{{ acc.id }}">
+          <i class="bi bi-plus-circle"></i> Add Amount
+        </button>
+      </div>
+    </div>
+
+    <!-- Add Amount Modal -->
+    <div class="modal fade" id="addAmountModal{{ acc.id }}" tabindex="-1"
+         aria-labelledby="addAmountLabel{{ acc.id }}" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h6 class="modal-title fw-semibold" id="addAmountLabel{{ acc.id }}">
+              <i class="bi bi-plus-circle text-success"></i> Add Money to Account
+            </h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <form method="post" action="{% url 'upi:add_amount' %}">
+            {% csrf_token %}
+            <input type="hidden" name="account_id" value="{{ acc.id }}">
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Amount to Add (₹)</label>
+                <div class="input-group">
+                  <span class="input-group-text fw-bold">₹</span>
+                  <input type="number" name="amount" class="form-control form-control-lg"
+                         placeholder="0" min="1" step="1" required inputmode="numeric">
+                </div>
+                <div class="form-text">Current balance: ₹{{ acc.balance }}</div>
+              </div>
+
+              <!-- Transaction PIN -->
+              <div class="mb-2">
+                <label class="form-label fw-semibold">Transaction PIN</label>
+                <div class="input-group">
+                  <input type="password" name="pin" id="addAmountPin{{ acc.id }}"
+                         class="form-control"
+                         inputmode="numeric" maxlength="4"
+                         placeholder="• • • •" required autocomplete="off">
+                  <button type="button" class="btn btn-outline-secondary vb-pin-eye-toggle"
+                          data-target="addAmountPin{{ acc.id }}" tabindex="-1">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+                <div class="form-text">Enter the PIN you set when the account was opened.</div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn vb-btn-primary">
+                <i class="bi bi-plus-circle"></i> Add Money
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    {% else %}
+    <!-- Pending account strip -->
+    <div class="vb-balance-strip" style="border-color:#FDE68A;">
+      <div>
+        <div class="label">{{ acc.get_account_type_display }} account — pending approval</div>
+        <div class="acc-meta">{{ acc.account_number|slice:":4" }} XXXX XXXX {{ acc.account_number|slice:"10:" }}</div>
+      </div>
+      <div class="text-end">
+        <div class="label">Requested deposit</div>
+        <div class="amount" style="font-size:1.1rem;">₹{{ acc.requested_balance }}</div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% empty %}
+  <div class="vb-data-card p-4 text-center text-muted mb-4">No accounts linked yet.</div>
+  {% endfor %}
+
+  <!-- Quick actions -->
+  <div class="vb-tile-grid">
+    <a href="{% url 'upi:send_money' %}" class="vb-tile">
+      <i class="bi bi-send-fill"></i> Send Money
+    </a>
+    <a href="{% url 'upi:transactions' %}" class="vb-tile">
+      <i class="bi bi-clock-history"></i> History
+    </a>
+    <a href="{% url 'loans:my_loans' %}" class="vb-tile">
+      <i class="bi bi-cash-coin"></i> My Loans
+    </a>
+    <a href="{% url 'upi:budgets' %}" class="vb-tile">
+      <i class="bi bi-pie-chart-fill"></i> Budgets
+    </a>
+    <a href="{% url 'upi:download_statement' %}" class="vb-tile">
+      <i class="bi bi-file-earmark-arrow-down"></i> Statement
+    </a>
+  </div>
+
+  <!-- This-month snapshot -->
+  <div class="vb-stat-row mb-4">
+    <div class="vb-stat-card">
+      <div class="lbl">Total balance</div>
+      <div class="val">₹{{ total_balance|floatformat:2 }}</div>
+    </div>
+    <div class="vb-stat-card">
+      <div class="lbl">Spent this month</div>
+      <div class="val" style="color:var(--vb-danger);">₹{{ current_month_spend|floatformat:2 }}</div>
+    </div>
+    <div class="vb-stat-card">
+      <div class="lbl">Received this month</div>
+      <div class="val" style="color:var(--vb-success);">₹{{ current_month_received|floatformat:2 }}</div>
+    </div>
+  </div>
+
+  <!-- Spending Insights -->
+  {% if has_transactions %}
+  <div class="row g-3 mb-4">
+    <div class="col-lg-7">
+      <div class="vb-chart-card h-100">
+        <div class="vb-chart-head">
+          <span class="title"><i class="bi bi-graph-up"></i> Cash flow — last 6 months</span>
+        </div>
+        <div class="vb-chart-body">
+          <canvas id="cashflowChart" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="vb-chart-card h-100">
+        <div class="vb-chart-head">
+          <span class="title"><i class="bi bi-pie-chart"></i> This month's spending</span>
+        </div>
+        <div class="vb-chart-body">
+          {% if has_spend_data %}
+          <canvas id="categoryChart" height="180"></canvas>
+          {% else %}
+          <div class="text-muted small text-center py-5">
+            No categorized spending yet this month.<br>
+            <a href="{% url 'upi:send_money' %}">Send a payment</a> and pick a category to see it here.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Budget snapshot -->
+  {% if has_budgets %}
+  <div class="vb-data-card mb-4">
+    <div class="head">
+      <span class="title"><i class="bi bi-piggy-bank"></i> Budget snapshot</span>
+      <a href="{% url 'upi:budgets' %}">Manage budgets</a>
+    </div>
+    <div class="p-3 vb-budget-snapshot-row">
+      {% for b in budget_snapshot %}
+      <div class="vb-budget-snapshot-item">
+        <div class="d-flex justify-content-between small mb-1">
+          <span><i class="bi {{ b.icon }}" style="color:{{ b.color }};"></i> {{ b.get_category_display }}</span>
+          <span class="vb-progress-text-{{ b.status_level }}">{{ b.percent_used }}%</span>
+        </div>
+        <div class="vb-progress-track">
+          <div class="vb-progress-fill vb-progress-{{ b.status_level }}" style="width:{{ b.percent_used }}%;"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="alert vb-alert-info small mb-4">
+    <i class="bi bi-lightbulb"></i>
+    You haven't set any spending goals yet. <a href="{% url 'upi:budgets' %}">Create a budget</a> to track it here.
+  </div>
+  {% endif %}
+  {% endif %}
+
+  <!-- Recent Transactions -->
+  <div class="vb-data-card mb-4">
+    <div class="head">
+      <span class="title">Recent transactions</span>
+      <a href="{% url 'upi:transactions' %}">View all</a>
+    </div>
+    {% if recent_txns %}
+    <table class="vb-table-dense">
+      <thead>
+        <tr><th>Date</th><th>Reference</th><th>Details</th><th>Category</th><th>Amount</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for t in recent_txns %}
+        <tr>
+          <td class="text-muted">{{ t.timestamp|date:"d M Y" }}</td>
+          <td class="text-muted">{{ t.reference_id }}</td>
+          <td>
+            {% if t.sender_account.user == user %}
+              <i class="bi bi-arrow-up-circle text-danger"></i> Sent {{ t.note|default:"" }}
+            {% else %}
+              <i class="bi bi-arrow-down-circle text-success"></i> Received {{ t.note|default:"" }}
+            {% endif %}
+          </td>
+          <td>
+            <span class="vb-cat-chip" style="color:{{ t.category_color }};background:{{ t.category_color }}1A;">
+              <i class="bi {{ t.category_icon }}"></i> {{ t.get_category_display }}
+            </span>
+          </td>
+          <td class="fw-semibold {% if t.sender_account.user == user %}text-danger{% else %}text-success{% endif %}">
+            {% if t.sender_account.user == user %}-{% else %}+{% endif %}₹{{ t.amount }}
+          </td>
+          <td>
+            <span class="vb-badge badge-status-{{ t.status }}">{{ t.status }}</span>
+            {% if t.is_flagged %}<span class="badge bg-warning text-dark ms-1">Flagged</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="p-4 text-muted small">
+      No transactions yet. <a href="{% url 'upi:send_money' %}">Send your first payment</a>.
+    </div>
+    {% endif %}
+  </div>
+
+  <script>
+  (function () {
+    document.querySelectorAll('.vb-pin-eye-toggle').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var field = document.getElementById(this.dataset.target);
+        var icon  = this.querySelector('i');
+        var isHidden = field.type === 'password';
+        field.type = isHidden ? 'text' : 'password';
+        icon.classList.toggle('bi-eye', !isHidden);
+        icon.classList.toggle('bi-eye-slash', isHidden);
+      });
+    });
+    document.querySelectorAll('input[id^="addAmountPin"]').forEach(function (field) {
+      field.addEventListener('input', function () {
+        this.value = this.value.replace(/\D/g, '').slice(0, 4);
+      });
+    });
+  })();
+  </script>
+
+{% endif %}
+
 </div>
+
+{% if not is_admin_view and has_transactions %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const cashflowCtx = document.getElementById('cashflowChart');
+  if (cashflowCtx) {
+    new Chart(cashflowCtx, {
+      type: 'line',
+      data: {
+        labels: {{ chart_labels|safe }},
+        datasets: [
+          {
+            label: 'Received',
+            data: {{ chart_received|safe }},
+            borderColor: '#16A34A',
+            backgroundColor: 'rgba(22,163,74,0.08)',
+            tension: 0.35, fill: true, pointRadius: 3,
+          },
+          {
+            label: 'Sent',
+            data: {{ chart_sent|safe }},
+            borderColor: '#DC2626',
+            backgroundColor: 'rgba(220,38,38,0.06)',
+            tension: 0.35, fill: true, pointRadius: 3,
+          },
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+        scales: {
+          y: { beginAtZero: true, ticks: { callback: v => '₹' + v } },
+          x: { grid: { display: false } },
+        }
+      }
+    });
+  }
+
+  const categoryCtx = document.getElementById('categoryChart');
+  if (categoryCtx) {
+    new Chart(categoryCtx, {
+      type: 'doughnut',
+      data: {
+        labels: {{ category_labels|safe }},
+        datasets: [{
+          data: {{ category_values|safe }},
+          backgroundColor: {{ category_colors|safe }},
+          borderWidth: 2,
+          borderColor: '#fff',
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '62%',
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } }
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}
+{% endif %}
 {% endblock %}

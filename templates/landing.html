@@ -1,138 +1,351 @@
 {% extends "base.html" %}
-{% block title %}SpendSmart Bank — Banking Made Simple{% endblock %}
+{% block title %}SpendSmart Bank — Banking Built for Speed{% endblock %}
 {% block content %}
 
-<!-- ── Hero ──────────────────────────────────────────────────────── -->
-<section class="vb-hero">
+{% if user.is_authenticated and user.is_staff or user.is_authenticated and user.is_admin %}
+<!-- ══════════════════════════════════════════════════════════════
+     ADMIN WELCOME — shown instead of the marketing landing page
+     when the visitor is staff/admin
+     ══════════════════════════════════════════════════════════════ -->
+<style>
+.aw-hero {
+  background: #fff;
+  border: 1px solid var(--vb-border);
+  border-left: 4px solid var(--vb-navy, #3C3489);
+  border-radius: 16px;
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+.aw-hero-avatar {
+  width: 80px; height: 80px; border-radius: 50%; flex-shrink: 0;
+  background: #F3E8FF; color: var(--vb-navy, #3C3489);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 28px;
+}
+.aw-hero h1 { margin: 0 0 4px; color: #111827; font-size: 1.6rem; font-weight: 700; }
+.aw-hero p { margin: 0; color: #6B7280; font-size: 0.88rem; }
+.aw-badge {
+  font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px;
+  margin-left: 4px; vertical-align: middle;
+}
+.aw-badge-admin { background: #F3E8FF; color: var(--vb-navy, #3C3489); }
+.aw-badge-active { background: rgba(16,163,74,0.12); color: #16A34A; }
+
+.aw-row { display: flex; gap: 1rem; }
+.aw-profile-card {
+  flex: 0 0 200px;
+  background: #fff; border: 1px solid var(--vb-border); border-radius: 12px;
+  padding: 1.5rem; text-align: center;
+}
+.aw-profile-avatar {
+  width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 12px;
+  background: #F3E8FF; color: var(--vb-navy, #3C3489);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 20px;
+}
+.aw-profile-name { font-weight: 700; font-size: 15px; margin: 0; color: #111827; }
+.aw-profile-user { font-size: 13px; color: #6B7280; margin: 2px 0 10px; }
+
+.aw-timeline {
+  flex: 1; background: #fff; border: 1px solid var(--vb-border); border-radius: 12px;
+  padding: 1.5rem 1.5rem 1.5rem 2.5rem; position: relative;
+}
+.aw-timeline::before {
+  content: ""; position: absolute; left: 29px; top: 1.5rem; bottom: 1.5rem;
+  width: 2px; background: var(--vb-border);
+}
+.aw-tl-item { position: relative; margin-bottom: 16px; }
+.aw-tl-item:last-child { margin-bottom: 0; }
+.aw-tl-dot {
+  position: absolute; left: -24px; top: 3px; width: 10px; height: 10px; border-radius: 50%;
+}
+.aw-tl-dot-blue  { background: var(--vb-navy, #3C3489); }
+.aw-tl-dot-red   { background: var(--vb-navy, #3C3489); }
+.aw-tl-dot-green { background: var(--vb-success, #16A34A); }
+.aw-tl-label { font-size: 12px; color: #6B7280; }
+.aw-tl-value { font-size: 15px; font-weight: 600; color: #111827; }
+
+@media (max-width: 640px) {
+  .aw-row { flex-direction: column; }
+  .aw-profile-card { flex: none; }
+}
+</style>
+
+<div class="container py-4">
+
+  <div class="aw-hero">
+    <div class="aw-hero-avatar">{{ user.first_name|default:user.username|first|upper }}</div>
+    <div>
+      <h1>Welcome back, {{ user.first_name|default:user.username }}</h1>
+      <p>
+        {{ user.email }} ·
+        <span class="aw-badge aw-badge-admin">Admin</span>
+        <span class="aw-badge aw-badge-active">Active</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="aw-row">
+
+    <div class="aw-profile-card">
+      <div class="aw-profile-avatar">{{ user.first_name|default:user.username|first|upper }}</div>
+      <p class="aw-profile-name">{{ user.get_full_name|default:user.username }}</p>
+      <p class="aw-profile-user">@{{ user.username }}</p>
+      <span class="aw-badge aw-badge-admin">Admin</span>
+    </div>
+
+    <div class="aw-timeline">
+      <div class="aw-tl-item">
+        <span class="aw-tl-dot aw-tl-dot-blue"></span>
+        <div class="aw-tl-label">Username · Full name</div>
+        <div class="aw-tl-value">{{ user.username }} ({{ user.get_full_name|default:user.username }})</div>
+      </div>
+      <div class="aw-tl-item">
+        <span class="aw-tl-dot aw-tl-dot-blue"></span>
+        <div class="aw-tl-label">Email · Customer ID</div>
+        <div class="aw-tl-value">{{ user.email }} · {{ user.customer_id }}</div>
+      </div>
+      <div class="aw-tl-item">
+        <span class="aw-tl-dot aw-tl-dot-red"></span>
+        <div class="aw-tl-label">Admin since</div>
+        <div class="aw-tl-value">{{ user.date_joined|date:"d M Y" }}</div>
+      </div>
+      <div class="aw-tl-item">
+        <span class="aw-tl-dot aw-tl-dot-green"></span>
+        <div class="aw-tl-label">Last login · Status</div>
+        <div class="aw-tl-value">
+          {{ user.last_login|date:"d M Y, h:i A" }} ·
+          <span style="color:var(--vb-success, #16A34A);">Active</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+{% else %}
+<!-- ══════════════════════════════════════════════════════════════
+     MARKETING LANDING PAGE — anonymous visitors and customers
+     ══════════════════════════════════════════════════════════════ -->
+<!-- ── Hero ─────────────────────────────────────────────────────── -->
+<section class="vb-hero-v2">
   <div class="container">
-    <div class="row align-items-center">
-      <div class="col-lg-7">
-        <div class="vb-eyebrow mb-2">Digital Banking Simulation</div>
-        <h1>Banking that moves<br>as fast as your life.</h1>
-        <p class="lead mt-3">
-          Send money instantly, apply for loans in minutes, and manage
-          everything from one secure dashboard.
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <div class="vb-hero-v2-badge">
+          <i class="bi bi-stars"></i> Digital-first savings &amp; payments
+        </div>
+        <h1>
+          Banking that moves<br>
+          as fast as <span class="accent">your money</span>.
+        </h1>
+        <p class="lead">
+          Zero-fee UPI transfers, instant loan eligibility, and real spending
+          insights — all in one account you can open in under two minutes.
         </p>
-        <div class="mt-4 d-flex gap-3 flex-wrap">
+        <div class="d-flex flex-wrap gap-2 mt-4">
           {% if user.is_authenticated %}
-            <a href="{% url 'upi:dashboard' %}" class="btn vb-btn-primary btn-lg px-4">
-              Go to Dashboard
+            <a href="{% url 'upi:dashboard' %}" class="btn vb-btn-primary px-4 py-2">
+              Go to Dashboard <i class="bi bi-arrow-right"></i>
             </a>
           {% else %}
-            <a href="{% url 'accounts:register' %}" class="btn vb-btn-primary btn-lg px-4">
-              Open Free Account
+            <a href="{% url 'accounts:register' %}" class="btn vb-btn-primary px-4 py-2">
+              Open Free Account <i class="bi bi-arrow-right"></i>
             </a>
-            <a href="{% url 'accounts:login' %}" class="btn vb-btn-outline btn-lg px-4">
+            <a href="{% url 'accounts:login' %}" class="btn px-4 py-2"
+               style="border:1px solid rgba(255,255,255,0.35);color:#fff;">
               Login
             </a>
           {% endif %}
         </div>
+
+        <div class="vb-trust-strip">
+          <span><i class="bi bi-shield-check"></i> PIN-secured transfers</span>
+          <span><i class="bi bi-lightning-charge"></i> Instant settlement</span>
+          <span><i class="bi bi-graph-up"></i> Built-in spending insights</span>
+        </div>
       </div>
-      <div class="col-lg-5 d-none d-lg-flex justify-content-center align-items-center">
-        <i class="bi bi-safe2-fill" style="font-size:9rem;color:rgba(201,163,39,0.92);"></i>
+
+      <div class="col-lg-6">
+        <div class="vb-hero-mock">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <div class="text-muted" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;">Available balance</div>
+              <div class="fw-bold" style="font-size:1.6rem;">₹84,250.00</div>
+            </div>
+            <div style="width:40px;height:40px;border-radius:10px;background:#F3E8FF;display:flex;align-items:center;justify-content:center;">
+              <i class="bi bi-bank2" style="color:var(--vb-navy);"></i>
+            </div>
+          </div>
+
+          <div class="row-line">
+            <span class="small text-muted"><i class="bi bi-cup-hot" style="color:#F59E0B;"></i> Food &amp; Dining</span>
+            <span class="small fw-semibold">₹2,140</span>
+          </div>
+          <div class="mini-bar mb-2"><span style="width:64%;background:#F59E0B;"></span></div>
+
+          <div class="row-line">
+            <span class="small text-muted"><i class="bi bi-receipt" style="color:#3B82F6;"></i> Bills &amp; Utilities</span>
+            <span class="small fw-semibold">₹3,600</span>
+          </div>
+          <div class="mini-bar mb-2"><span style="width:82%;background:#3B82F6;"></span></div>
+
+          <div class="row-line">
+            <span class="small text-muted"><i class="bi bi-bag" style="color:#EC4899;"></i> Shopping</span>
+            <span class="small fw-semibold">₹980</span>
+          </div>
+          <div class="mini-bar"><span style="width:38%;background:#EC4899;"></span></div>
+
+          <div class="mt-3 pt-3 d-flex justify-content-between align-items-center" style="border-top:1px solid #F3F4F6;">
+            <span class="small text-muted">This month's spending</span>
+            <span class="fw-bold" style="color:var(--vb-navy);">₹6,720</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ── Stat strip ─────────────────────────────────────────────────── -->
-<div class="container" style="margin-top:-2.5rem;position:relative;z-index:2;">
-  <div class="vb-stat-strip row g-0 text-center py-3">
-    <div class="col-6 col-md-3 py-3 border-end">
+<!-- ── Quick action icons row ───────────────────────────────────── -->
+<div class="container" style="margin-top:-2.5rem; position:relative; z-index:3;">
+  <div class="vb-data-card" style="border-radius:16px;box-shadow:var(--vb-shadow-md);">
+    <div class="p-3" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;">
+
+      <a href="{% if user.is_authenticated %}{% url 'upi:send_money' %}{% else %}{% url 'accounts:login' %}{% endif %}"
+         class="text-center text-decoration-none">
+        <div style="width:44px;height:44px;border-radius:50%;background:#F3E8FF;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;">
+          <i class="bi bi-send-fill" style="color:var(--vb-navy);font-size:1.1rem;"></i>
+        </div>
+        <div class="small" style="color:#374151;">Send Money</div>
+      </a>
+
+      <a href="{% if user.is_authenticated %}{% url 'loans:apply' %}{% else %}{% url 'accounts:login' %}{% endif %}"
+         class="text-center text-decoration-none">
+        <div style="width:44px;height:44px;border-radius:50%;background:#F3E8FF;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;">
+          <i class="bi bi-cash-coin" style="color:var(--vb-navy);font-size:1.1rem;"></i>
+        </div>
+        <div class="small" style="color:#374151;">Loans</div>
+      </a>
+
+      <a href="{% if user.is_authenticated %}{% url 'upi:budgets' %}{% else %}{% url 'accounts:login' %}{% endif %}"
+         class="text-center text-decoration-none">
+        <div style="width:44px;height:44px;border-radius:50%;background:#F3E8FF;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;">
+          <i class="bi bi-pie-chart-fill" style="color:var(--vb-navy);font-size:1.1rem;"></i>
+        </div>
+        <div class="small" style="color:#374151;">Budgets</div>
+      </a>
+
+      <a href="{% url 'accounts:register' %}" class="text-center text-decoration-none">
+        <div style="width:44px;height:44px;border-radius:50%;background:#F3E8FF;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;">
+          <i class="bi bi-person-vcard" style="color:var(--vb-navy);font-size:1.1rem;"></i>
+        </div>
+        <div class="small" style="color:#374151;">KYC</div>
+      </a>
+
+      <a href="{% url 'accounts:admin_login' %}" class="text-center text-decoration-none">
+        <div style="width:44px;height:44px;border-radius:50%;background:#F3E8FF;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;">
+          <i class="bi bi-shield-lock" style="color:var(--vb-navy);font-size:1.1rem;"></i>
+        </div>
+        <div class="small" style="color:#374151;">Admin Panel</div>
+      </a>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Stat strip ───────────────────────────────────────────────── -->
+<div class="container" style="margin-top:2rem;">
+  <div class="vb-stat-strip row g-0 text-center py-3" style="margin-top:0;">
+    <div class="col-6 col-md-3 py-2 border-end">
       <div class="stat-num">₹0 Fee</div>
       <div class="stat-label">on all transfers</div>
     </div>
-    <div class="col-6 col-md-3 py-3 border-end">
+    <div class="col-6 col-md-3 py-2 border-end">
       <div class="stat-num">Instant</div>
-      <div class="stat-label">UPI transfers</div>
+      <div class="stat-label">UPI settlement</div>
     </div>
-    <div class="col-6 col-md-3 py-3 border-end">
+    <div class="col-6 col-md-3 py-2 border-end">
       <div class="stat-num">4 Types</div>
       <div class="stat-label">of loans available</div>
     </div>
-    <div class="col-6 col-md-3 py-3">
+    <div class="col-6 col-md-3 py-2">
       <div class="stat-num">256-bit</div>
       <div class="stat-label">PIN-secured transfers</div>
     </div>
   </div>
 </div>
 
-<!-- ── Features ──────────────────────────────────────────────────── -->
-<section class="container py-6 mt-5">
-  <div class="text-center mb-5">
-    <div class="vb-eyebrow mb-2">Everything in one place</div>
-    <h2 class="fw-bold" style="color:var(--vb-navy)">Simple, Secure, Fast Banking</h2>
+<!-- ── Services ─────────────────────────────────────────────────── -->
+<section class="container py-5">
+  <div class="text-center mb-5" style="max-width:560px;margin-left:auto;margin-right:auto;">
+    <div class="vb-section-eyebrow">Explore</div>
+    <h2 class="vb-section-heading">Everything a modern account needs</h2>
+    <p class="text-muted mt-2">
+      One login for payments, loans, spending insights, and account security —
+      no separate apps to juggle.
+    </p>
   </div>
-  <div class="row g-4">
-    <div class="col-md-4">
-      <div class="vb-card p-4 h-100">
-        <div class="vb-feature-icon mb-3">
-          <i class="bi bi-send-fill"></i>
-        </div>
-        <h5 class="fw-semibold">Instant UPI Transfers</h5>
+  <div class="row g-3">
+    <div class="col-md-6 col-lg-4">
+      <div class="vb-feature-card-v2">
+        <div class="vb-feature-icon-v2"><i class="bi bi-send-fill"></i></div>
+        <h6 class="fw-semibold mb-1">Zero-Fee UPI Transfers</h6>
         <p class="text-muted small mb-0">
-          Send money to any SpendSmart UPI ID in seconds. PIN-protected,
-          atomic, and fully logged — every rupee accounted for.
+          PIN-secured, zero-fee transfers that settle instantly to any SpendSmart Bank account.
         </p>
       </div>
     </div>
-    <div class="col-md-4">
-      <div class="vb-card p-4 h-100">
-        <div class="vb-feature-icon mb-3">
-          <i class="bi bi-cash-coin"></i>
-        </div>
-        <h5 class="fw-semibold">Smart Loan Engine</h5>
+    <div class="col-md-6 col-lg-4">
+      <div class="vb-feature-card-v2">
+        <div class="vb-feature-icon-v2"><i class="bi bi-pie-chart-fill"></i></div>
+        <h6 class="fw-semibold mb-1">Budgets &amp; Spending Insights</h6>
         <p class="text-muted small mb-0">
-          Apply for personal, home, car, or education loans. Instant
-          eligibility decision with full amortization schedule.
+          Set monthly limits per category, watch live progress bars, and see
+          6-month cash-flow charts on your dashboard.
         </p>
       </div>
     </div>
-    <div class="col-md-4">
-      <div class="vb-card p-4 h-100">
-        <div class="vb-feature-icon mb-3">
-          <i class="bi bi-shield-check"></i>
-        </div>
-        <h5 class="fw-semibold">PIN Lockout Protection</h5>
+    <div class="col-md-6 col-lg-4">
+      <div class="vb-feature-card-v2">
+        <div class="vb-feature-icon-v2"><i class="bi bi-cash-coin"></i></div>
+        <h6 class="fw-semibold mb-1">Personal &amp; Home Loans</h6>
         <p class="text-muted small mb-0">
-          3 wrong PINs locks transfers for 5 minutes. Every failed attempt
-          is flagged for admin review — just like a real bank.
+          Apply for personal, home, car, or education loans. Instant eligibility
+          check with a full EMI breakdown before you apply.
         </p>
       </div>
     </div>
-    <div class="col-md-4">
-      <div class="vb-card p-4 h-100">
-        <div class="vb-feature-icon mb-3">
-          <i class="bi bi-clock-history"></i>
-        </div>
-        <h5 class="fw-semibold">Full Transaction History</h5>
+    <div class="col-md-6 col-lg-4">
+      <div class="vb-feature-card-v2">
+        <div class="vb-feature-icon-v2"><i class="bi bi-shield-check"></i></div>
+        <h6 class="fw-semibold mb-1">PIN Lockout Protection</h6>
         <p class="text-muted small mb-0">
-          Filter by status, see balance after each transaction,
-          download a PDF statement at any time.
+          3 wrong PINs locks transfers for 5 minutes. Every failed attempt is
+          flagged for admin review.
         </p>
       </div>
     </div>
-    <div class="col-md-4">
-      <div class="vb-card p-4 h-100">
-        <div class="vb-feature-icon mb-3">
-          <i class="bi bi-person-vcard"></i>
-        </div>
-        <h5 class="fw-semibold">Simulated KYC</h5>
+    <div class="col-md-6 col-lg-4">
+      <div class="vb-feature-card-v2">
+        <div class="vb-feature-icon-v2"><i class="bi bi-file-earmark-arrow-down"></i></div>
+        <h6 class="fw-semibold mb-1">PDF Statements &amp; Receipts</h6>
         <p class="text-muted small mb-0">
-          PAN and Aadhaar format validation on sign-up, unique Customer ID,
-          and avatar generation — the full onboarding flow.
+          Download a formatted PDF statement anytime, or grab a receipt for any
+          single transaction.
         </p>
       </div>
     </div>
-    <div class="col-md-4">
-      <div class="vb-card p-4 h-100">
-        <div class="vb-feature-icon mb-3">
-          <i class="bi bi-shield-lock"></i>
-        </div>
-        <h5 class="fw-semibold">Admin Operations Panel</h5>
+    <div class="col-md-6 col-lg-4">
+      <div class="vb-feature-card-v2">
+        <div class="vb-feature-icon-v2"><i class="bi bi-shield-lock"></i></div>
+        <h6 class="fw-semibold mb-1">Admin Operations Panel</h6>
         <p class="text-muted small mb-0">
           Staff can view all transactions, resolve failures, freeze/unfreeze
-          accounts, and review an audit log — all in one dashboard.
+          accounts, and review a full audit log.
         </p>
       </div>
     </div>
@@ -141,13 +354,13 @@
 
 <!-- ── CTA ────────────────────────────────────────────────────────── -->
 {% if not user.is_authenticated %}
-<section style="background:var(--vb-navy);color:#fff;" class="py-5 mt-5">
-  <div class="container text-center">
+<section class="container pb-5">
+  <div class="vb-cta-v2">
     <h3 class="fw-bold mb-3">Ready to get started?</h3>
     <p class="text-white-50 mb-4">
       Open your free simulated savings account in under two minutes.
     </p>
-    <a href="{% url 'accounts:register' %}" class="btn vb-btn-primary btn-lg px-5">
+    <a href="{% url 'accounts:register' %}" class="btn vb-btn-primary px-5 py-2">
       Open Free Account
     </a>
   </div>
@@ -155,7 +368,7 @@
 {% endif %}
 
 <!-- ── Disclaimer ─────────────────────────────────────────────────── -->
-<div class="container my-4">
+<div class="container mb-5">
   <div class="alert vb-alert-warning small mb-0" role="alert">
     <i class="bi bi-info-circle"></i>
     <strong>Simulation only.</strong> SpendSmart Bank is a demo project.
@@ -163,5 +376,7 @@
     PAN and Aadhaar numbers are format-validated only — never sent anywhere.
   </div>
 </div>
+
+{% endif %}
 
 {% endblock %}

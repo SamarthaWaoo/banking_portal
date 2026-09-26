@@ -2,21 +2,66 @@
 {% load static %}
 {% block title %}Send Money — SpendSmart Bank{% endblock %}
 {% block content %}
-<div class="container py-4">
-  <div class="row g-4">
+<style>
+.vb-recipient-tabs { display: flex; border-bottom: 1px solid var(--vb-border); }
+.vb-recipient-tab {
+  flex: 1; text-align: center; padding: 0.55rem 0.5rem; font-size: 0.82rem;
+  color: #6B7280; cursor: pointer; border: none; background: transparent;
+  border-bottom: 2px solid transparent; font-weight: 500;
+}
+.vb-recipient-tab.active { color: var(--vb-navy); border-bottom-color: var(--vb-navy); }
+.vb-recipient-tab:not(:first-child) { border-left: 1px solid var(--vb-border); }
+.vb-recipient-panel { display: none; padding: 0.9rem 0; }
+.vb-recipient-panel.active { display: block; }
+.vb-recipient-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.5rem 0.15rem; border-top: 1px solid #F3F4F6; font-size: 0.85rem;
+}
+.vb-recipient-row:first-child { border-top: none; }
+.vb-recipient-row button.vb-pick-btn {
+  background: transparent; border: none; text-align: left; flex: 1;
+  padding: 0.15rem 0; color: #111827;
+}
+.vb-recipient-row .vb-pick-sub { color: #9CA3AF; font-size: 0.72rem; }
 
-    <!-- Main send form -->
-    <div class="col-lg-7">
+/* Recipient search card no longer needs to host the dropdown — it's portaled to body */
+.vb-saved-ben-badge {
+  color: var(--vb-success, #16A34A);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+#suggestions {
+  position: fixed;
+  z-index: 3000;
+  background: #fff;
+  border: 1px solid var(--vb-border, #E5E7EB);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+</style>
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-7 col-xl-6">
       <div class="vb-card p-4 p-lg-5">
-        <h4 class="vb-section-title mb-1"><i class="bi bi-send-fill"></i> Send Money</h4>
+        <h4 class="vb-section-title mb-1">Send Money</h4>
         <p class="text-muted small mb-4">Search, select, authorize — that's it.</p>
 
-        {% if request.user.is_pin_locked %}
+        {% with user_account=request.user.accounts.first %}
+        {% if user_account and not user_account.is_approved %}
+        <div class="alert alert-warning d-flex align-items-start gap-3 mb-3">
+          <i class="bi bi-hourglass-split fs-5 mt-1 text-warning flex-shrink-0"></i>
+          <div>
+            <div class="fw-semibold">Profile Under Review — Payments Disabled</div>
+            <div class="small text-muted mt-1">Your account is awaiting admin approval. You can send money once your account is verified and activated.</div>
+          </div>
+        </div>
+        {% elif request.user.is_pin_locked %}
         <div class="alert vb-alert-error mb-3">
           <i class="bi bi-lock-fill"></i> Transfer access locked for
           {{ request.user.pin_lock_remaining_seconds }}s. Too many wrong PINs.
         </div>
         {% endif %}
+        {% endwith %}
 
         <form method="post" id="sendForm">
           {% csrf_token %}
@@ -34,22 +79,77 @@
             </select>
           </div>
 
-          <!-- RECIPIENT SEARCH BAR -->
-          <div class="mb-1">
-            <label class="form-label fw-semibold">
-              <i class="bi bi-search"></i> Send To (click to browse, or type to search)
-            </label>
-            <div style="position:relative;">
-              <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
-                <input type="text" id="searchUser" class="form-control"
-                       placeholder="Type name, UPI ID, or nickname…"
-                       value="{{ prefill_receiver }}"
-                       autocomplete="off">
+          <!-- RECIPIENT PICKER (tabbed: Search / Beneficiaries / Recent) -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold mb-1">Send To</label>
+            <div class="vb-data-card" style="border-radius:10px;">
+              <div class="vb-recipient-tabs">
+                <button type="button" class="vb-recipient-tab active" data-panel="panelSearch">Search</button>
+                <button type="button" class="vb-recipient-tab" data-panel="panelBeneficiaries">Beneficiaries</button>
+                <button type="button" class="vb-recipient-tab" data-panel="panelRecent">Recent</button>
               </div>
-              <!-- Live search dropdown -->
-              <div id="suggestions" class="list-group shadow-sm mt-1"
-                   style="position:absolute;z-index:999;width:100%;display:none;max-height:300px;overflow-y:auto;">
+
+              <div class="px-3">
+                <!-- SEARCH PANEL -->
+                <div class="vb-recipient-panel active" id="panelSearch">
+                  <div style="position:relative;">
+                    <div class="input-group">
+                      <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+                      <input type="text" id="searchUser" class="form-control"
+                             placeholder="Type name, UPI ID, or nickname…"
+                             value="{{ prefill_receiver }}"
+                             autocomplete="off">
+                    </div>
+                    <!-- Live search dropdown -->
+                    <div id="suggestions" class="list-group shadow-sm mt-1"
+                         style="position:absolute;z-index:999;width:100%;display:none;max-height:260px;overflow-y:auto;">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SAVED BENEFICIARIES PANEL -->
+                <div class="vb-recipient-panel" id="panelBeneficiaries">
+                  {% if beneficiaries %}
+                  {% for ben in beneficiaries %}
+                  <div class="vb-recipient-row">
+                    <button type="button" class="vb-pick-btn beneficiary-btn"
+                            data-upi="{{ ben.account.upi_id }}"
+                            data-name="{{ ben.account.user.get_full_name|default:ben.nickname }}">
+                      <i class="bi bi-star-fill text-warning" style="font-size:0.72rem;"></i>
+                      {{ ben.nickname|default:ben.account.user.username|truncatechars:24 }}
+                      <div class="vb-pick-sub">{{ ben.account.upi_id }}</div>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger ms-2 remove-ben-btn"
+                            data-remove-url="{% url 'upi:remove_beneficiary' ben.id %}"
+                            title="Remove">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
+                  {% endfor %}
+                  {% else %}
+                  <p class="text-muted small mb-2">No saved beneficiaries yet. Send money to someone and click Save to add them here.</p>
+                  {% endif %}
+                </div>
+
+                <!-- RECENT CONTACTS PANEL -->
+                <div class="vb-recipient-panel" id="panelRecent">
+                  {% if recent_contacts %}
+                  {% for rc in recent_contacts %}
+                  <div class="vb-recipient-row">
+                    <button type="button" class="vb-pick-btn recent-contact-btn"
+                            data-upi="{{ rc.contact_account.upi_id }}"
+                            data-name="{{ rc.contact_account.user.get_full_name|default:rc.contact_account.user.username }}">
+                      <i class="bi bi-person-circle text-secondary" style="font-size:0.78rem;"></i>
+                      {{ rc.contact_account.user.get_full_name|default:rc.contact_account.user.username }}
+                      <span class="vb-pick-sub" style="margin-left:4px;">{{ rc.last_used|date:"d M" }}</span>
+                      <div class="vb-pick-sub">{{ rc.contact_account.upi_id }}</div>
+                    </button>
+                  </div>
+                  {% endfor %}
+                  {% else %}
+                  <p class="text-muted small mb-2">No recent contacts yet.</p>
+                  {% endif %}
+                </div>
               </div>
             </div>
           </div>
@@ -65,14 +165,14 @@
                 Paying: <strong id="payeeName"></strong>
                 <span class="text-muted" id="payeeInfo"></span>
               </span>
+              <span id="savedBenBadge" class="vb-saved-ben-badge d-none">
+                <i class="bi bi-star-fill"></i> Saved
+              </span>
               <button type="button" class="btn btn-sm btn-outline-warning"
                       id="saveAsBenBtn" onclick="showSaveBenForm()"
                       title="Save as beneficiary for quick access later">
                 <i class="bi bi-star"></i> Save
               </button>
-              <span id="alreadySavedBadge" class="badge bg-light text-muted d-none">
-                <i class="bi bi-star-fill text-warning"></i> Already saved
-              </span>
             </div>
             <!-- Inline save-beneficiary mini-form (hidden by default) -->
             <div id="saveBenForm" class="mt-2 d-none">
@@ -99,6 +199,17 @@
             </div>
           </div>
 
+          <!-- Category -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Category</label>
+            <select name="category" class="form-select">
+              {% for code, label in category_choices %}
+              <option value="{{ code }}" {% if code == 'OTHER' %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Used to track your spending against your budgets.</div>
+          </div>
+
           <!-- Note -->
           <div class="mb-3">
             <label class="form-label fw-semibold">Message <span class="text-muted fw-normal">(optional)</span></label>
@@ -122,96 +233,40 @@
             <div class="form-text">3 wrong attempts locks transfers for 5 minutes.</div>
           </div>
 
-          <button type="submit" class="btn vb-btn-primary w-100 py-2" id="sendBtn">
+          <button type="submit" class="btn vb-btn-primary w-100 py-2" id="sendBtn" {% with ua=request.user.accounts.first %}{% if ua and not ua.is_approved %}disabled title="Account under review"{% endif %}{% endwith %}>
             <i class="bi bi-send-fill"></i> Send Money
           </button>
         </form>
+
+        <!-- QUICK TIP -->
+        <div class="alert vb-alert-info small mt-3 mb-0">
+          <i class="bi bi-lightbulb"></i>
+          <strong>Tip:</strong> Click a saved beneficiary or recent contact from the tabs above to auto-fill the recipient.
+        </div>
+
       </div>
     </div>
-
-    <!-- Sidebar: Beneficiaries + Recent -->
-    <div class="col-lg-5">
-
-      <!-- SAVED BENEFICIARIES (Favorites) -->
-      <div class="vb-card p-4 mb-4">
-        <h6 class="fw-semibold mb-3"><i class="bi bi-star-fill text-warning"></i> Saved Beneficiaries</h6>
-        {% if beneficiaries %}
-        <div class="d-flex flex-column gap-2">
-          {% for ben in beneficiaries %}
-          <div class="d-flex align-items-center justify-content-between gap-2">
-            <button type="button"
-                    class="btn btn-outline-primary btn-sm beneficiary-btn flex-grow-1 text-start"
-                    data-upi="{{ ben.account.upi_id }}"
-                    data-name="{{ ben.account.user.get_full_name|default:ben.nickname }}"
-                    title="{{ ben.nickname }} • {{ ben.account.upi_id }}">
-              <i class="bi bi-star-fill text-warning" style="font-size:0.75rem;"></i>
-              {{ ben.nickname|default:ben.account.user.username|truncatechars:20 }}
-              <div class="text-muted" style="font-size:0.7rem;">{{ ben.account.upi_id }}</div>
-            </button>
-            <form method="post" action="{% url 'upi:remove_beneficiary' ben.id %}">
-              {% csrf_token %}
-              <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove">
-                <i class="bi bi-trash"></i>
-              </button>
-            </form>
-          </div>
-          {% endfor %}
-        </div>
-        {% else %}
-        <p class="text-muted small mb-0">No saved beneficiaries yet. Send money to someone and click ★ Save to add them here.</p>
-        {% endif %}
-      </div>
-
-      <!-- RECENT CONTACTS -->
-      {% if recent_contacts %}
-      <div class="vb-card p-4 mb-4">
-        <h6 class="fw-semibold mb-3"><i class="bi bi-clock-history"></i> Recent Contacts</h6>
-        <div class="list-group list-group-flush">
-          {% for rc in recent_contacts %}
-          <button type="button"
-                  class="list-group-item list-group-item-action small py-2 recent-contact-btn"
-                  data-upi="{{ rc.contact_account.upi_id }}"
-                  data-name="{{ rc.contact_account.user.get_full_name|default:rc.contact_account.user.username }}">
-            <div class="d-flex justify-content-between align-items-center">
-              <span>
-                <i class="bi bi-person-circle text-secondary me-2"></i>
-                {{ rc.contact_account.user.get_full_name|default:rc.contact_account.user.username }}
-              </span>
-              <span class="text-muted" style="font-size:0.8rem;">{{ rc.last_used|date:"d M" }}</span>
-            </div>
-            <div class="text-muted" style="font-size:0.75rem;margin-left:1.5rem;">{{ rc.contact_account.upi_id }}</div>
-          </button>
-          {% endfor %}
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- QUICK TIPS -->
-      <div class="alert vb-alert-info small">
-        <i class="bi bi-lightbulb"></i>
-        <strong>Tip:</strong> Click a beneficiary or recent contact to auto-fill the search field.
-      </div>
-
-    </div>
-
   </div>
 </div>
 
 <script>
 const SEARCH_URL    = "{% url 'upi:search_users' %}";
+const ALL_USERS_URL = "{% url 'upi:get_all_users' %}";
 
-// UPI IDs already saved as beneficiaries — used to hide the "Save" prompt
-// once someone has already been saved.
-const SAVED_BENEFICIARIES = new Set([
-  {% for ben in beneficiaries %}"{{ ben.account.upi_id }}",{% endfor %}
-]);
+// ── Recipient tab switching ──────────────────────────────────────────────
+document.querySelectorAll('.vb-recipient-tab').forEach(tab => {
+  tab.addEventListener('click', function () {
+    document.querySelectorAll('.vb-recipient-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.vb-recipient-panel').forEach(p => p.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById(this.dataset.panel).classList.add('active');
+  });
+});
 
-// ── Amount field: digits only, no spinner (plain text input) ─────
 document.getElementById('amountField').addEventListener('input', function () {
   this.value = this.value.replace(/[^\d]/g, '');
 });
 
-// ── Eye toggle ───────────────────────────────────────────────────
 document.querySelectorAll('.eye-toggle').forEach(btn => {
   btn.addEventListener('click', function () {
     const field = document.getElementById(this.dataset.target);
@@ -223,14 +278,12 @@ document.querySelectorAll('.eye-toggle').forEach(btn => {
   });
 });
 
-// ── PIN: digits only ─────────────────────────────────────────────
 document.getElementById('txnPin').addEventListener('input', function () {
   this.value = this.value.replace(/\D/g, '').slice(0, 4);
 });
 
-// ── Live recipient search ─────────────────────────────────────────
 let searchTimer;
-let suppressInputEvent = false;   // prevents selectRecipient from re-triggering search
+let suppressInputEvent = false;
 const searchInput   = document.getElementById('searchUser');
 const suggestionsEl = document.getElementById('suggestions');
 const receiverInput = document.getElementById('receiverUpi');
@@ -238,10 +291,28 @@ const payeeCard     = document.getElementById('payeeCard');
 const payeeName     = document.getElementById('payeeName');
 const payeeInfo     = document.getElementById('payeeInfo');
 
+// Move the dropdown to <body> so no ancestor's overflow/rounded-corner
+// clipping can ever hide it, and position it under the input manually.
+document.body.appendChild(suggestionsEl);
+
+function positionSuggestions() {
+  const r = searchInput.getBoundingClientRect();
+  suggestionsEl.style.top   = (r.bottom + 4) + 'px';
+  suggestionsEl.style.left  = r.left + 'px';
+  suggestionsEl.style.width = r.width + 'px';
+}
+window.addEventListener('resize', positionSuggestions);
+window.addEventListener('scroll', positionSuggestions, true);
+
+function openSuggestions() {
+  positionSuggestions();
+  suggestionsEl.style.display = 'block';
+}
+
 function renderSuggestions(data) {
   if (!data.length) {
     suggestionsEl.innerHTML = '<div class="list-group-item text-muted small px-3 py-2">No users found.</div>';
-    suggestionsEl.style.display = 'block';
+    openSuggestions();
     return;
   }
   suggestionsEl.innerHTML = data.map(u => `
@@ -255,53 +326,41 @@ function renderSuggestions(data) {
       <span class="badge bg-light text-muted align-self-center small">${u.account_type}</span>
     </button>
   `).join('');
-  suggestionsEl.style.display = 'block';
+  openSuggestions();
 }
 
-// Suggestions only ever come from the letter-by-letter search endpoint —
-// we never dump the full user list on focus or on an empty box.
-searchInput.addEventListener('focus', function () {
-  const q = this.value.trim();
-  if (!receiverInput.value && q.length >= 1) {
-    suggestionsEl.style.display = 'block';
-  }
-});
-
+// Only search once the person has actually typed something — no more
+// "show everyone" on empty focus.
 searchInput.addEventListener('input', function () {
-  // selectRecipient sets searchInput.value which fires this event —
-  // suppressInputEvent breaks that loop.
   if (suppressInputEvent) return;
 
   clearTimeout(searchTimer);
   const q = this.value.trim();
 
-  // Direct UPI ID pasted
   if (q.includes('@spendsmartbank')) {
     receiverInput.value = q;
     payeeName.textContent = q;
     payeeInfo.textContent = '';
     payeeCard.classList.remove('d-none');
     suggestionsEl.style.display = 'none';
+    refreshSaveBenState(q);
     return;
   }
 
-  // User edited the box → clear selection
   receiverInput.value = '';
   payeeCard.classList.add('d-none');
 
-  // Nothing typed → nothing to show
-  if (q.length === 0) {
+  if (q.length < 2) {
     suggestionsEl.style.display = 'none';
     return;
   }
 
-  // Debounced search — fires from the very first letter typed
   searchTimer = setTimeout(() => {
     fetch(`${SEARCH_URL}?q=${encodeURIComponent(q)}`)
       .then(r => r.json())
       .then(renderSuggestions)
       .catch(() => { suggestionsEl.style.display = 'none'; });
-  }, 200);
+  }, 250);
 });
 
 function selectRecipient(upiId, name, type) {
@@ -313,26 +372,31 @@ function selectRecipient(upiId, name, type) {
   payeeName.textContent = name + ' ';
   payeeInfo.textContent = '· ' + type;
   payeeCard.classList.remove('d-none');
-  // pre-fill the hidden upi_id field in the save-beneficiary form
   const benUpiInput = document.getElementById('benUpiInput');
   if (benUpiInput) benUpiInput.value = upiId;
+  refreshSaveBenState(upiId);
 
-  // Don't prompt to save someone who is already a saved beneficiary.
-  hideSaveBenForm();
-  const saveBtn = document.getElementById('saveAsBenBtn');
-  const alreadyBadge = document.getElementById('alreadySavedBadge');
-  if (SAVED_BENEFICIARIES.has(upiId)) {
-    saveBtn.classList.add('d-none');
-    alreadyBadge.classList.remove('d-none');
-  } else {
-    saveBtn.classList.remove('d-none');
-    saveBtn.style.display = '';
-    alreadyBadge.classList.add('d-none');
-  }
+  // Jump back to the Search tab so the payee card / amount / PIN fields are visible
+  document.querySelectorAll('.vb-recipient-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.vb-recipient-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('.vb-recipient-tab[data-panel="panelSearch"]').classList.add('active');
+  document.getElementById('panelSearch').classList.add('active');
 }
 
 const CSRF_TOKEN = '{{ csrf_token }}';
 const ADD_BEN_URL = "{% url 'upi:add_beneficiary' %}";
+
+// UPI IDs already saved as beneficiaries, rendered server-side
+const SAVED_BENEFICIARY_UPIS = new Set([
+  {% for ben in beneficiaries %}'{{ ben.account.upi_id }}',{% endfor %}
+]);
+
+function refreshSaveBenState(upiId) {
+  const isSaved = SAVED_BENEFICIARY_UPIS.has(upiId);
+  document.getElementById('saveAsBenBtn').classList.toggle('d-none', isSaved);
+  document.getElementById('savedBenBadge').classList.toggle('d-none', !isSaved);
+  hideSaveBenForm();
+}
 
 function showSaveBenForm() {
   document.getElementById('saveBenForm').classList.remove('d-none');
@@ -340,7 +404,10 @@ function showSaveBenForm() {
 }
 function hideSaveBenForm() {
   document.getElementById('saveBenForm').classList.add('d-none');
-  document.getElementById('saveAsBenBtn').classList.remove('d-none');
+  const upiId = document.getElementById('benUpiInput').value;
+  if (!SAVED_BENEFICIARY_UPIS.has(upiId)) {
+    document.getElementById('saveAsBenBtn').classList.remove('d-none');
+  }
   document.getElementById('benMsg').textContent = '';
 }
 
@@ -353,14 +420,15 @@ function saveBeneficiary() {
   const body = new URLSearchParams({ upi_id: upiId, nickname: nickname, csrfmiddlewaretoken: CSRF_TOKEN });
   fetch(ADD_BEN_URL, { method: 'POST', body: body, headers: { 'X-CSRFToken': CSRF_TOKEN } })
     .then(r => {
-      // Server redirects (302) back to send_money; fetch follows it automatically.
-      // If we land on send_money page that means success (or already saved).
-      SAVED_BENEFICIARIES.add(upiId);
+      if (!r.ok) throw new Error('save failed');
+      SAVED_BENEFICIARY_UPIS.add(upiId);
       msgEl.style.color = 'green';
-      msgEl.textContent = '✓ Saved! Reload to see in your beneficiaries.';
-      document.getElementById('saveAsBenBtn').style.display = 'none';
+      msgEl.textContent = 'Saved to your beneficiaries.';
+      document.getElementById('savedBenBadge').classList.remove('d-none');
+      document.getElementById('saveAsBenBtn').classList.add('d-none');
       document.getElementById('benNickname').disabled = true;
       document.querySelector('#saveBenForm button.btn-warning').disabled = true;
+      setTimeout(() => { document.getElementById('saveBenForm').classList.add('d-none'); }, 1200);
     })
     .catch(() => {
       msgEl.style.color = 'red';
@@ -368,39 +436,52 @@ function saveBeneficiary() {
     });
 }
 
-// ── Beneficiary buttons ──────────────────────────────────────────
 document.querySelectorAll('.beneficiary-btn').forEach(btn => {
   btn.addEventListener('click', function () {
     selectRecipient(this.dataset.upi, this.dataset.name, 'Beneficiary');
   });
 });
 
-// ── Recent contact buttons ───────────────────────────────────────
+document.querySelectorAll('.remove-ben-btn').forEach(btn => {
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    const url = this.dataset.removeUrl;
+    const row = this.closest('.vb-recipient-row');
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+    })
+      .then(r => {
+        if (!r.ok) throw new Error('remove failed');
+        if (row) row.remove();
+      })
+      .catch(() => {
+        alert('Could not remove this beneficiary. Please try again.');
+      });
+  });
+});
+
 document.querySelectorAll('.recent-contact-btn').forEach(btn => {
   btn.addEventListener('click', function () {
     selectRecipient(this.dataset.upi, this.dataset.name, 'Recent');
   });
 });
 
-// ── Close suggestions when clicking outside ──────────────────────
 document.addEventListener('click', function (e) {
   if (!suggestionsEl.contains(e.target) && e.target !== searchInput) {
     suggestionsEl.style.display = 'none';
   }
 });
 
-// ── Pre-fill from "Send Again" query param ──────────────────────
 {% if prefill_receiver %}
 selectRecipient('{{ prefill_receiver }}', '{{ prefill_receiver }}', '');
 {% endif %}
 
-// ── Guard: block submit if no recipient selected ─────────────────
 const theForm = document.querySelector('form[method="post"]');
 theForm.addEventListener('submit', function (e) {
   if (!receiverInput.value.trim()) {
     e.preventDefault();
 
-    // 1. If exactly one suggestion is already visible, click it and re-submit
     const firstBtn = suggestionsEl.querySelector('button');
     if (firstBtn) {
       firstBtn.click();
@@ -408,25 +489,23 @@ theForm.addEventListener('submit', function (e) {
       return;
     }
 
-    // 2. If the search box has text, do a live lookup and auto-pick the first result
     const q = searchInput.value.trim();
     if (q.length >= 2) {
       fetch(`${SEARCH_URL}?q=${encodeURIComponent(q)}`)
         .then(r => r.json())
         .then(data => {
           if (data.length) {
-            // Auto-select the first (and usually only) match
             selectRecipient(data[0].upi_id, data[0].username, data[0].account_type);
             setTimeout(() => theForm.submit(), 120);
           } else {
-            showReceiverError('⚠ No user found matching "' + q + '". Select from the dropdown.');
+            showReceiverError('No user found matching "' + q + '". Select from the dropdown.');
           }
         })
-        .catch(() => showReceiverError('⚠ Could not look up recipient. Please select from the dropdown.'));
+        .catch(() => showReceiverError('Could not look up recipient. Please select from the dropdown.'));
       return;
     }
 
-    showReceiverError('⚠ Please search and click a name from the dropdown to select a recipient.');
+    showReceiverError('Please search and click a name from the dropdown to select a recipient.');
   }
 });
 
@@ -443,7 +522,6 @@ function showReceiverError(msg) {
   err.textContent = msg;
 }
 
-// Reset red border when user picks someone
 searchInput.addEventListener('input', function () {
   searchInput.style.border = '';
   const err = document.getElementById('receiverError');

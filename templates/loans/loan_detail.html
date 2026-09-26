@@ -1,91 +1,188 @@
 {% extends "base.html" %}
 {% block title %}Loan {{ loan.application_id }}{% endblock %}
+{% block page_title %}Loan {{ loan.application_id }}{% endblock %}
 {% block content %}
 <div class="container py-4">
-  <div class="vb-card p-4 p-lg-5 mb-4">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-      <div>
-        <h5 class="vb-section-title mb-1">{{ loan.get_loan_type_display }} — {{ loan.application_id }}</h5>
-        <div class="text-muted small">Applied on {{ loan.applied_at|date:"d M Y, H:i" }}</div>
+  <div class="vb-data-card mb-4">
+    <div class="p-4">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+          <h5 class="vb-section-title mb-1">{{ loan.get_loan_type_display }} — {{ loan.application_id }}</h5>
+          <div class="text-muted small">Applied on {{ loan.applied_at|date:"d M Y, H:i" }}</div>
+        </div>
+        <span class="vb-badge badge-status-{{ loan.status }} fs-6">{{ loan.get_status_display }}</span>
       </div>
-      <span class="vb-badge badge-status-{{ loan.status }} fs-6">{{ loan.get_status_display }}</span>
     </div>
 
-    <div class="row g-3 mt-3">
-      <div class="col-6 col-md-3">
-        <div class="text-muted small">Loan Amount</div>
-        <div class="fw-bold">₹{{ loan.loan_amount }}</div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="text-muted small">Interest Rate</div>
-        <div class="fw-bold">{{ loan.interest_rate }}% p.a.</div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="text-muted small">Tenure</div>
-        <div class="fw-bold">{{ loan.tenure_months }} months</div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="text-muted small">Monthly EMI</div>
-        <div class="fw-bold">₹{{ loan.emi_amount }}</div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="text-muted small">DTI Ratio</div>
-        <div class="fw-bold">{{ loan.dti_ratio }}%</div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="text-muted small">Credit Score</div>
-        <div class="fw-bold">{{ loan.credit_score }}</div>
-      </div>
-      {% if schedule %}
-      <div class="col-6 col-md-3">
-        <div class="text-muted small">Total Interest Payable</div>
-        <div class="fw-bold">₹{{ total_interest }}</div>
-      </div>
-      {% endif %}
-    </div>
+    <table class="vb-table-dense mb-0">
+      <tbody>
+        <tr><td class="text-muted">Loan Amount</td><td class="fw-semibold">₹{{ loan.loan_amount }}</td></tr>
+        <tr><td class="text-muted">Interest Rate</td><td class="fw-semibold">{{ loan.interest_rate }}% p.a.</td></tr>
+        <tr><td class="text-muted">Tenure</td><td class="fw-semibold">{{ loan.tenure_months }} months</td></tr>
+        <tr><td class="text-muted">Monthly EMI</td><td class="fw-semibold">₹{{ loan.emi_amount }}</td></tr>
+        <tr><td class="text-muted">DTI Ratio</td><td class="fw-semibold">{{ loan.dti_ratio }}%</td></tr>
+        <tr><td class="text-muted">Credit Score</td><td class="fw-semibold">{{ loan.credit_score }}</td></tr>
+        {% if schedule %}
+        <tr><td class="text-muted">Total Interest Payable</td><td class="fw-semibold">₹{{ total_interest }}</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
 
-    {% if loan.status == 'PENDING' %}
-    <div class="alert vb-alert-warning mt-4 mb-0">
-      <i class="bi bi-hourglass-split"></i>
-      <strong>Application under review.</strong>
-      Your application has been submitted and is awaiting admin approval. We'll update you once a decision is made.
-      {% if loan.decision_reason %}
-      <div class="mt-2 small text-muted">Eligibility notes: {{ loan.decision_reason }}</div>
-      {% endif %}
+    <div class="p-3">
+      <div class="alert
+        {% if loan.status == 'APPROVED' or loan.status == 'DISBURSED' or loan.status == 'CLOSED' %}vb-alert-success
+        {% elif loan.status == 'REJECTED' or loan.status == 'DEFAULTED' %}vb-alert-error
+        {% else %}vb-alert-info{% endif %} mb-0">
+        <strong>Decision reason:</strong> {{ loan.decision_reason }}
+      </div>
     </div>
-    {% elif loan.status == 'APPROVED' %}
-    <div class="alert vb-alert-success mt-4 mb-0">
-      <i class="bi bi-check-circle-fill"></i>
-      <strong>Approved!</strong> {{ loan.decision_reason }}
-    </div>
-    {% elif loan.status == 'REJECTED' %}
-    <div class="alert vb-alert-error mt-4 mb-0">
-      <i class="bi bi-x-circle-fill"></i>
-      <strong>Not approved this time.</strong> {{ loan.decision_reason }}
-    </div>
-    {% else %}
-    <div class="alert vb-alert-info mt-4 mb-0">
-      <strong>Status:</strong> {{ loan.get_status_display }} — {{ loan.decision_reason }}
-    </div>
-    {% endif %}
   </div>
 
+  <!-- Repayment progress — only meaningful once the loan is disbursed -->
+  {% if repayment_started %}
+  <div class="vb-data-card mb-4">
+    <div class="head"><span class="title"><i class="bi bi-hourglass-split"></i> Repayment progress</span></div>
+    <div class="p-3">
+      <div class="d-flex flex-wrap gap-4 mb-3" style="font-size:13px;">
+        <div><span class="text-muted">Months paid:</span> <strong>{{ months_paid }} / {{ loan.tenure_months }}</strong></div>
+        <div><span class="text-muted">Months left:</span> <strong>{{ months_left }}</strong></div>
+        <div><span class="text-muted">Remaining amount:</span> <strong>₹{{ remaining_amount|floatformat:2 }}</strong></div>
+      </div>
+      {% if due_now %}
+      <div class="alert vb-alert-warning small mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <i class="bi bi-calendar-event"></i>
+          <strong>Month {{ next_due_month }} is due now</strong> (was due {{ next_due_date|date:"d M Y" }}). Pay this EMI to stay on schedule — see it highlighted below.
+        </div>
+        <button type="button" class="btn vb-btn-primary btn-sm text-nowrap"
+                data-bs-toggle="modal" data-bs-target="#payEmiModal">
+          <i class="bi bi-credit-card"></i> Pay EMI Now
+        </button>
+      </div>
+
+      <!-- Pay EMI Modal -->
+      <div class="modal fade" id="payEmiModal" tabindex="-1" aria-labelledby="payEmiLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h6 class="modal-title fw-semibold" id="payEmiLabel">
+                <i class="bi bi-credit-card text-success"></i> Pay Month {{ next_due_month }} EMI
+              </h6>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'loans:repay' loan.application_id %}">
+              {% csrf_token %}
+              <div class="modal-body">
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Amount (₹)</label>
+                  <input type="text" name="amount" class="form-control form-control-lg"
+                         value="{{ loan.emi_amount }}" readonly>
+                  <div class="form-text">This is your fixed monthly EMI for this loan.</div>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label fw-semibold">Transaction PIN</label>
+                  <div class="input-group">
+                    <input type="password" name="pin" id="payEmiPin"
+                           class="form-control"
+                           inputmode="numeric" maxlength="4"
+                           placeholder="• • • •" required autocomplete="off">
+                    <button type="button" class="btn btn-outline-secondary vb-pin-eye-toggle"
+                            data-target="payEmiPin" tabindex="-1">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                  </div>
+                  <div class="form-text">The same PIN you set when your account was opened.</div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn vb-btn-primary">
+                  <i class="bi bi-check-circle"></i> Confirm Payment
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <script>
+      (function () {
+        document.querySelectorAll('.vb-pin-eye-toggle').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var field = document.getElementById(this.dataset.target);
+            var icon  = this.querySelector('i');
+            var isHidden = field.type === 'password';
+            field.type = isHidden ? 'text' : 'password';
+            icon.classList.toggle('bi-eye', !isHidden);
+            icon.classList.toggle('bi-eye-slash', isHidden);
+          });
+        });
+        var pinField = document.getElementById('payEmiPin');
+        if (pinField) {
+          pinField.addEventListener('input', function () {
+            this.value = this.value.replace(/\D/g, '').slice(0, 4);
+          });
+        }
+      })();
+      </script>
+      {% elif next_due_date %}
+      <div class="alert vb-alert-info small mb-0">
+        <i class="bi bi-calendar-check"></i>
+        <strong>Next EMI (Month {{ next_due_month }}) due on {{ next_due_date|date:"d M Y" }}</strong>
+        — {{ days_until_due }} day{{ days_until_due|pluralize }} from now. You'll get reminders at 10, 5, 3, and 1 day before.
+      </div>
+      {% else %}
+      <div class="alert vb-alert-success small mb-0">
+        <i class="bi bi-check-circle"></i> All EMIs paid to date — no unpaid months.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% elif loan.status == 'APPROVED' %}
+  <div class="alert vb-alert-info small mb-4">
+    <i class="bi bi-info-circle"></i>
+    Repayment tracking (months paid/left, which month is due) begins once this loan is disbursed.
+  </div>
+  {% endif %}
+
   {% if schedule %}
-  <div class="vb-card p-4">
-    <h6 class="mb-3"><i class="bi bi-table"></i> Amortization Schedule</h6>
-    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
-      <table class="table table-vb table-sm mb-0">
-        <thead style="position: sticky; top: 0;">
-          <tr><th>Month</th><th>EMI (₹)</th><th>Principal (₹)</th><th>Interest (₹)</th><th>Balance (₹)</th></tr>
+  <div class="vb-data-card">
+    <div class="head">
+      <span class="title">Amortization schedule</span>
+    </div>
+    {% if repayment_started %}
+    <div class="px-3 pt-2 pb-1 d-flex flex-wrap gap-3" style="font-size:11.5px;color:#6B7280;">
+      <span><span class="vb-badge badge-status-SUCCESS">Paid</span> already paid</span>
+      <span><span class="vb-badge" style="background:#FEF3C7;color:#92400E;">Due Now</span> pay this one next</span>
+      <span><span class="vb-badge badge-status-PENDING">Unpaid</span> upcoming, not yet due</span>
+    </div>
+    {% endif %}
+    <div style="max-height: 460px; overflow-y: auto;">
+      <table class="vb-table-dense mb-0">
+        <thead style="position: sticky; top: 0; background:#fff;">
+          <tr><th>Month</th><th>EMI (₹)</th><th>Principal (₹)</th><th>Interest (₹)</th><th>Balance (₹)</th><th>Status</th></tr>
         </thead>
         <tbody>
           {% for row in schedule %}
-          <tr>
-            <td>{{ row.month }}</td>
+          <tr {% if due_now and row.month == next_due_month %}style="background:#FFFBEB;"{% endif %}>
+            <td class="text-muted">{{ row.month }}</td>
             <td>{{ row.emi }}</td>
             <td>{{ row.principal }}</td>
             <td>{{ row.interest }}</td>
             <td>{{ row.balance }}</td>
+            <td>
+              {% if due_now and row.month == next_due_month %}
+                <span class="vb-badge" style="background:#FEF3C7;color:#92400E;">Due Now</span>
+              {% elif row.paid == True %}
+                <span class="vb-badge badge-status-SUCCESS">Paid</span>
+              {% elif row.month == next_due_month and next_due_date %}
+                <span class="vb-badge badge-status-PENDING" title="Due {{ next_due_date|date:'d M Y' }}">Due {{ next_due_date|date:"d M" }}</span>
+              {% elif row.paid == False %}
+                <span class="vb-badge badge-status-PENDING">Unpaid</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>

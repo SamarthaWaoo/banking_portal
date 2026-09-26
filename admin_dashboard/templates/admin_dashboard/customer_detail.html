@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+{% block title %}Customer: {{ customer.get_full_name|default:customer.username }} — Admin{% endblock %}
+{% block content %}
+<style>
+.cd-page { background:var(--vb-canvas,#F8F7FC); }
+.cd-card {
+  background:#fff; border:1px solid #ECEAF5; border-radius:14px;
+  box-shadow:0 1px 3px rgba(76,29,149,.05);
+}
+.cd-card-head {
+  display:flex; align-items:center; gap:8px;
+  font-size:13px; font-weight:700; color:#0F172A;
+  padding:16px 18px; border-bottom:1px solid #F1EFFA;
+}
+.cd-card-head i { color:#7C3AED; font-size:15px; }
+.cd-card-body { padding:16px 18px; }
+.cd-avatar-chip {
+  width:52px; height:52px; border-radius:50%;
+  background:#EEEDFE; color:#3C3489;
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px; font-weight:700; flex-shrink:0;
+}
+.cd-kyc-table td { padding:6px 0; font-size:12.5px; color:#0F172A; border:none; }
+.cd-kyc-table td:first-child { color:#64748B; width:40%; }
+.cd-badge {
+  display:inline-block; font-size:11px; font-weight:700;
+  padding:3px 10px; border-radius:999px;
+}
+.cd-badge-purple { background:#EEEDFE; color:#3C3489; }
+.cd-badge-amber { background:#FFFBEB; color:#92400E; }
+.cd-badge-green { background:#ECFDF5; color:#047857; }
+.cd-badge-red { background:#FEF2F2; color:#B91C1C; }
+.cd-badge-gray { background:#F1F5F9; color:#475569; }
+.cd-account-row {
+  border:1px solid #ECEAF5; border-radius:12px; padding:12px 14px;
+  display:flex; justify-content:space-between; align-items:center;
+  flex-wrap:wrap; gap:8px; margin-bottom:8px;
+}
+.cd-table { width:100%; font-size:12.5px; border-collapse:collapse; }
+.cd-table thead th {
+  text-align:left; font-size:10.5px; font-weight:700; color:#8A93A6;
+  text-transform:uppercase; letter-spacing:.03em;
+  padding:8px 6px; border-bottom:1px solid #ECEAF5;
+}
+.cd-table tbody td { padding:9px 6px; border-bottom:1px solid #F5F3FA; color:#0F172A; }
+.cd-table tbody tr:last-child td { border-bottom:none; }
+.cd-table tbody tr:hover { background:#FAF9FF; }
+.cd-notif-row { display:flex; gap:12px; padding:12px 0; border-bottom:1px solid #F5F3FA; }
+.cd-notif-row:last-child { border-bottom:none; }
+.cd-notif-icon {
+  width:32px; height:32px; border-radius:8px; flex-shrink:0;
+  background:#EEEDFE; color:#7C3AED;
+  display:flex; align-items:center; justify-content:center; font-size:14px;
+}
+.cd-notif-title { font-weight:700; font-size:12.5px; color:#0F172A; }
+.cd-notif-body { font-size:12px; color:#475569; margin-top:2px; }
+.cd-notif-date { font-size:11px; color:#94A3B8; margin-top:2px; }
+.cd-btn-back {
+  font-size:12.5px; font-weight:600; color:#0F172A; background:#fff;
+  border:1px solid #E2E4E9; border-radius:8px; padding:6px 12px;
+  text-decoration:none; display:inline-flex; align-items:center; gap:6px;
+}
+.cd-btn-back:hover { background:#FAFAFB; color:#0F172A; }
+.cd-btn-export {
+  font-size:12.5px; font-weight:600; color:#7C3AED; background:#fff;
+  border:1px solid #DDD6FE; border-radius:8px; padding:6px 14px;
+  text-decoration:none; display:inline-flex; align-items:center; gap:6px;
+}
+.cd-btn-export:hover { background:#F5F3FF; color:#6D28D9; }
+.cd-btn-send {
+  width:100%; font-size:13px; font-weight:600; color:#fff;
+  background:#7C3AED; border:none; border-radius:8px; padding:9px 0;
+}
+.cd-btn-send:hover { background:#6D28D9; color:#fff; }
+.cd-stat-strip {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;
+}
+@media (max-width: 768px) { .cd-stat-strip { grid-template-columns:repeat(2,1fr); } }
+.cd-stat-box {
+  background:#fff; border:1px solid #ECEAF5; border-radius:var(--vb-radius-md, 12px);
+  box-shadow:var(--vb-shadow-xs, 0 1px 2px rgba(76,29,149,.05));
+  padding:14px 16px;
+}
+.cd-stat-box .lbl {
+  font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+  color:#94A3B8; margin-bottom:4px;
+}
+.cd-stat-box .val { font-size:1.25rem; font-weight:700; color:#0F172A; }
+</style>
+
+<div class="cd-page py-4 px-4">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <a href="{% url 'admin_dashboard:dashboard' %}#tabPendingLink" class="cd-btn-back">
+      <i class="bi bi-arrow-left"></i> Back
+    </a>
+    <h4 class="mb-0" style="font-size:17px;font-weight:700;color:#0F172A;">
+      {{ customer.get_full_name|default:customer.username }}
+    </h4>
+    <span class="cd-badge cd-badge-gray">{{ customer.customer_id }}</span>
+    <a href="{% url 'admin_dashboard:xbrl_statement' customer.customer_id %}" class="cd-btn-export ms-auto">
+      <i class="bi bi-file-earmark-code"></i> Export XBRL/XML Statement
+    </a>
+  </div>
+
+  <!-- Quick-glance stats -->
+  <div class="cd-stat-strip">
+    <div class="cd-stat-box">
+      <div class="lbl">Total balance</div>
+      <div class="val">₹{{ total_balance|floatformat:2 }}</div>
+    </div>
+    <div class="cd-stat-box">
+      <div class="lbl">Transactions</div>
+      <div class="val">{{ total_txn_count }}</div>
+    </div>
+    <div class="cd-stat-box">
+      <div class="lbl">Success / Failed</div>
+      <div class="val" style="font-size:1.05rem;">
+        <span style="color:#0F7C4D;">{{ success_count }}</span>
+        <span style="color:#CBD5E1;">/</span>
+        <span style="color:#C81E3A;">{{ failed_count }}</span>
+      </div>
+    </div>
+    <div class="cd-stat-box">
+      <div class="lbl">Active loans</div>
+      <div class="val">{{ active_loan_count }}</div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- KYC Details -->
+    <div class="col-lg-4">
+      <div class="cd-card">
+        <div class="cd-card-body">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="cd-avatar-chip" style="padding:0;overflow:hidden;">
+              <img src="{{ customer.avatar }}" alt="avatar" width="52" height="52" style="border-radius:50%;object-fit:cover;"
+                   onerror="this.src='https://api.dicebear.com/6.x/identicon/svg?seed={{ customer.username }}';">
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:14px;color:#0F172A;">{{ customer.get_full_name|default:customer.username }}</div>
+              <div style="font-size:12px;color:#94A3B8;">@{{ customer.username }}</div>
+            </div>
+          </div>
+          <div style="font-size:10.5px;font-weight:700;letter-spacing:.05em;color:#94A3B8;text-transform:uppercase;margin-bottom:6px;">
+            KYC details
+          </div>
+          <table class="cd-kyc-table" style="width:100%;">
+            <tr><td>Customer ID</td><td style="font-weight:600;">{{ customer.customer_id }}</td></tr>
+            <tr><td>Email</td><td>{{ customer.email }}</td></tr>
+            <tr><td>Phone</td><td>{{ customer.phone_number }}</td></tr>
+            <tr><td>PAN</td><td>{{ customer.pan_number }}</td></tr>
+            <tr><td>Aadhaar</td><td>XXXX-XXXX-{{ customer.aadhaar_number|slice:"8:12" }}</td></tr>
+            <tr><td>Date of birth</td><td>{{ customer.date_of_birth|default:"—" }}</td></tr>
+            <tr><td>Joined</td><td>{{ customer.date_joined|date:"d M Y" }}</td></tr>
+            <tr>
+              <td>KYC</td>
+              <td>
+                {% if customer.is_kyc_verified %}
+                  <span class="cd-badge cd-badge-green">Verified</span>
+                {% else %}
+                  <span class="cd-badge cd-badge-amber">Pending</span>
+                {% endif %}
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Quick Send Notification -->
+      <div class="cd-card mt-3">
+        <div class="cd-card-head"><i class="bi bi-bell"></i> Send notification</div>
+        <div class="cd-card-body">
+          <form method="post" action="{% url 'admin_dashboard:send_notification' %}">
+            {% csrf_token %}
+            <input type="hidden" name="recipient_id" value="{{ customer.id }}">
+            <div class="mb-2">
+              <select name="preset" class="form-select form-select-sm" id="presetSel">
+                <option value="welcome">Welcome</option>
+                <option value="approved">Account Approved</option>
+                <option value="freeze_warning">Freeze Warning</option>
+                <option value="loan_approved">Loan Approved</option>
+                <option value="loan_rejected">Loan Rejected</option>
+                <option value="festival_offer">Festival Offer</option>
+                <option value="rate_update">Rate Update</option>
+                <option value="referral">Referral</option>
+                <option value="custom">Custom…</option>
+              </select>
+            </div>
+            <div id="customFields" class="d-none">
+              <input type="text" name="custom_title" class="form-control form-control-sm mb-2" placeholder="Title">
+              <textarea name="custom_body" class="form-control form-control-sm mb-2" rows="3" placeholder="Message body"></textarea>
+            </div>
+            <button type="submit" class="cd-btn-send">
+              <i class="bi bi-send"></i> Send
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+
+      <!-- Accounts -->
+      <div class="cd-card mb-4">
+        <div class="cd-card-head"><i class="bi bi-bank2"></i> Linked accounts</div>
+        <div class="cd-card-body">
+          {% for acc in accs %}
+          <div class="cd-account-row">
+            <div>
+              <div style="font-weight:600;font-size:12.5px;color:#0F172A;">{{ acc.account_number }}</div>
+              <div style="font-size:11.5px;color:#94A3B8;">{{ acc.get_account_type_display }} · {{ acc.upi_id }}</div>
+            </div>
+            <div class="text-end">
+              {% if acc.is_approved %}
+                <div style="font-weight:700;font-size:13px;color:#0F172A;">₹{{ acc.balance }}</div>
+                <span class="cd-badge cd-badge-green">Approved</span>
+              {% else %}
+                <div style="font-size:12px;color:#94A3B8;font-style:italic;">Pending ₹{{ acc.requested_balance }}</div>
+                <span class="cd-badge cd-badge-amber">Pending</span>
+              {% endif %}
+              {% if not acc.is_active %}<span class="cd-badge cd-badge-red ms-1">Frozen</span>{% endif %}
+            </div>
+          </div>
+          {% empty %}
+          <p class="mb-0" style="font-size:12.5px;color:#94A3B8;">No accounts.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Loans -->
+      <div class="cd-card mb-4">
+        <div class="cd-card-head"><i class="bi bi-cash-coin"></i> Loan applications</div>
+        <div class="cd-card-body">
+          {% if loans %}
+          <div class="table-responsive">
+            <table class="cd-table">
+              <thead><tr><th>App ID</th><th>Type</th><th>Amount</th><th>Status</th><th>Applied</th></tr></thead>
+              <tbody>
+                {% for loan in loans %}
+                <tr>
+                  <td style="font-weight:600;">
+                    <a href="{% url 'loans:loan_detail' loan.application_id %}" style="color:#7C3AED;text-decoration:none;">{{ loan.application_id }}</a>
+                  </td>
+                  <td>{{ loan.get_loan_type_display }}</td>
+                  <td style="font-weight:700;">₹{{ loan.loan_amount }}</td>
+                  <td><span class="vb-badge badge-status-{{ loan.status }}">{{ loan.get_status_display }}</span></td>
+                  <td>{{ loan.applied_at|date:"d M Y" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="mb-0" style="font-size:12.5px;color:#94A3B8;">No loan applications.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="cd-card mb-4">
+        <div class="cd-card-head"><i class="bi bi-arrow-left-right"></i> Recent transactions (last 50)</div>
+        <div class="cd-card-body">
+          {% if txns %}
+          <div class="table-responsive">
+            <table class="cd-table">
+              <thead><tr><th>Date</th><th>Ref ID</th><th>Direction</th><th>Amount</th><th>Status</th><th>Note</th></tr></thead>
+              <tbody>
+                {% for t in txns %}
+                <tr>
+                  <td style="color:#64748B;">{{ t.timestamp|date:"d M Y, H:i" }}</td>
+                  <td style="font-weight:600;">{{ t.reference_id }}</td>
+                  <td>
+                    {% if t.sender_account.user == customer %}
+                      <span style="color:#C81E3A;"><i class="bi bi-arrow-up"></i> Sent</span>
+                    {% else %}
+                      <span style="color:#0F7C4D;"><i class="bi bi-arrow-down"></i> Received</span>
+                    {% endif %}
+                  </td>
+                  <td style="font-weight:700;">₹{{ t.amount }}</td>
+                  <td><span class="vb-badge badge-status-{{ t.status }}">{{ t.status }}</span></td>
+                  <td style="color:#94A3B8;">{{ t.note|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="mb-0" style="font-size:12.5px;color:#94A3B8;">No transactions yet.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Notifications sent to this customer -->
+      <div class="cd-card">
+        <div class="cd-card-head"><i class="bi bi-bell-history"></i> Notification history</div>
+        <div class="cd-card-body">
+          {% if notifs %}
+          {% for n in notifs %}
+          <div class="cd-notif-row">
+            <div class="cd-notif-icon"><i class="bi {{ n.icon }}"></i></div>
+            <div class="flex-grow-1">
+              <div class="cd-notif-title">{{ n.title }}</div>
+              <div class="cd-notif-body">{{ n.body|truncatewords:20 }}</div>
+              <div class="cd-notif-date">{{ n.created_at|date:"d M Y, H:i" }}</div>
+            </div>
+            {% if n.is_read %}
+              <span class="cd-badge cd-badge-gray align-self-center" style="white-space:nowrap;">Read</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+          {% else %}
+          <p class="mb-0" style="font-size:12.5px;color:#94A3B8;">No notifications sent yet.</p>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// Show/hide custom fields when preset = 'custom'
+document.getElementById('presetSel').addEventListener('change', function () {
+  document.getElementById('customFields').classList.toggle('d-none', this.value !== 'custom');
+});
+</script>
+{% endblock %}

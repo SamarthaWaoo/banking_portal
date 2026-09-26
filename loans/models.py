@@ -57,6 +57,11 @@ class LoanApplication(models.Model):
     defaulted_at = models.DateTimeField(null=True, blank=True)
     outstanding_balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     repayments_made = models.IntegerField(default=0)
+    # Tracks which day-threshold (10/5/3/1) reminder was last sent for the
+    # CURRENT due month, so the reminder command never sends the same
+    # threshold twice. Reset to None whenever a payment is made, so the
+    # next due month's reminders start fresh.
+    last_reminder_days = models.IntegerField(null=True, blank=True)
 
     class Meta:
         ordering = ['-applied_at']
@@ -113,28 +118,51 @@ class LoanApplication(models.Model):
         elif disposable <= 0:
             reasons.append("No disposable income after monthly expenses")
 
-        # Store computed eligibility flags as decision_reason for admin review.
-        # Status always starts as PENDING — admin approves or rejects manually.
         if reasons:
-            self.decision_reason = "Potential issues: " + "; ".join(reasons)
+            self.status = 'REJECTED'
+            self.decision_reason = "; ".join(reasons)
         else:
+            self.status = 'APPROVED'
             self.decision_reason = "Meets all eligibility criteria"
-        self.status = 'PENDING'
-        # decided_at is set when admin actually approves/rejects
+
+        self.decided_at = timezone.now()
         return self.status
 
     def disburse(self):
-        """Mark loan as disbursed and set outstanding balance."""
+        """
+        Mark loan as disbursed, set the loan's own outstanding balance,
+        AND actually credit the customer's real bank account — otherwise
+        the customer sees 'Disbursed' status but the money never lands
+        anywhere they can see or spend it.
+        """
+        from upi.models import BankAccount, Transaction  # local import: avoids circular import at app load time
+
         self.status = 'DISBURSED'
         self.disbursed_at = timezone.now()
         self.outstanding_balance = self.loan_amount
         self.save()
+
+        account = self.user.accounts.filter(is_approved=True).first()
+        if account:
+            account.balance = account.balance + self.loan_amount
+            account.save(update_fields=['balance'])
+            Transaction.objects.create(
+                receiver_account=account,
+                sender_account=None,
+                amount=self.loan_amount,
+                transaction_type='RECEIVE',
+                status='SUCCESS',
+                note=f'Loan disbursement — {self.application_id}',
+                category='OTHER',
+            )
+        return account is not None
 
     def make_repayment(self, amount):
         """Reduce outstanding balance when EMI is paid."""
         if self.status == 'DISBURSED' and self.outstanding_balance > 0:
             self.outstanding_balance -= Decimal(amount)
             self.repayments_made += 1
+            self.last_reminder_days = None  # fresh reminder cycle for the new due month
             if self.outstanding_balance <= 0:
                 self.status = 'CLOSED'
                 self.closed_at = timezone.now()
@@ -164,6 +192,42 @@ class LoanApplication(models.Model):
                 'balance': round(balance, 2),
             })
         return schedule
+
+    @property
+    def tenure_years(self):
+        return round(self.tenure_months / 12, 1)
+
+    @property
+    def disposable_income(self):
+        return round(float(self.monthly_salary) - float(self.monthly_expenses), 2)
+
+    @property
+    def calc_emi(self):
+        """Fallback EMI display when emi_amount not yet calculated."""
+        return round(self.calculate_emi(), 2)
+
+    @staticmethod
+    def _add_months(base_dt, months):
+        """Pure-stdlib month addition — no dateutil dependency needed."""
+        import calendar
+        total_month_index = base_dt.month - 1 + months
+        year = base_dt.year + total_month_index // 12
+        month = total_month_index % 12 + 1
+        last_day_of_month = calendar.monthrange(year, month)[1]
+        day = min(base_dt.day, last_day_of_month)
+        return base_dt.replace(year=year, month=month, day=day)
+
+    def get_next_due_date(self):
+        """
+        The calendar date the next unpaid EMI is actually due — exactly
+        `repayments_made + 1` calendar months after disbursement. Returns
+        None if the loan isn't disbursed yet, or once fully closed/defaulted.
+        """
+        if self.status != 'DISBURSED' or not self.disbursed_at:
+            return None
+        if self.repayments_made >= self.tenure_months:
+            return None
+        return self._add_months(self.disbursed_at, self.repayments_made + 1).date()
 
     def __str__(self):
         return f"{self.application_id} - {self.user.username} - {self.status}"

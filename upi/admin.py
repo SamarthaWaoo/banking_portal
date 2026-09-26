@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import BankAccount, Transaction
+from .models import BankAccount, Transaction, Budget
 
 
 @admin.register(BankAccount)
@@ -11,6 +11,13 @@ class BankAccountAdmin(admin.ModelAdmin):
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
-    list_display = ('reference_id', 'sender_account', 'receiver_account', 'amount', 'status', 'timestamp')
+    list_display = ('reference_id', 'sender_account', 'receiver_account', 'amount', 'category', 'status', 'timestamp')
     search_fields = ('reference_id',)
-    list_filter = ('status', 'transaction_type', 'timestamp')
+    list_filter = ('status', 'transaction_type', 'category', 'timestamp')
+
+
+@admin.register(Budget)
+class BudgetAdmin(admin.ModelAdmin):
+    list_display = ('user', 'category', 'monthly_limit', 'updated_at')
+    search_fields = ('user__username',)
+    list_filter = ('category',)
