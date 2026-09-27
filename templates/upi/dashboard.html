@@ -68,6 +68,22 @@
   </div>
 
 {% else %}
+  {% if needs_security_question %}
+  <div class="alert alert-warning d-flex align-items-start gap-3 mb-4" role="alert">
+    <i class="bi bi-shield-exclamation fs-4 mt-1 text-warning"></i>
+    <div class="flex-grow-1">
+      <div class="fw-semibold">Set up a security question</div>
+      <div class="small">
+        You haven't set a security question yet — it's needed to reset your
+        transaction PIN if you ever forget it.
+      </div>
+    </div>
+    <a href="{% url 'accounts:set_security_question' %}" class="btn btn-sm vb-btn-outline flex-shrink-0">
+      Set it up
+    </a>
+  </div>
+  {% endif %}
+
   {% if pending_accounts %}
   <div class="alert alert-warning d-flex align-items-start gap-3 mb-4" role="alert">
     <i class="bi bi-hourglass-split fs-4 mt-1 text-warning"></i>
@@ -75,7 +91,7 @@
       <div class="fw-semibold">Account Pending Approval</div>
       <div class="small">
         Your account is awaiting admin review. Once approved, your initial deposit of
-        <strong>₹{{ pending_accounts.0.requested_balance }}</strong> will be credited
+        <strong>₹{{ pending_accounts.0.requested_balance|floatformat:2 }}</strong> will be credited
         and you'll be able to transact freely.
       </div>
     </div>
@@ -88,7 +104,7 @@
     <div>
       <div class="fw-semibold">Account Approved</div>
       <div class="small">
-        Your account has been approved and <strong>₹{{ newly_approved.balance }}</strong>
+        Your account has been approved and <strong>₹{{ newly_approved.balance|floatformat:2 }}</strong>
         has been credited. You can now send money, apply for loans, and use all features.
       </div>
     </div>
@@ -120,7 +136,7 @@
       </div>
       <div class="text-end">
         <div class="label">Available balance</div>
-        <div class="amount">₹{{ acc.balance }}</div>
+        <div class="amount">₹{{ acc.balance|floatformat:2 }}</div>
       </div>
       <div>
         <button type="button" class="btn vb-btn-outline btn-sm"
@@ -152,7 +168,7 @@
                   <input type="number" name="amount" class="form-control form-control-lg"
                          placeholder="0" min="1" step="1" required inputmode="numeric">
                 </div>
-                <div class="form-text">Current balance: ₹{{ acc.balance }}</div>
+                <div class="form-text">Current balance: ₹{{ acc.balance|floatformat:2 }}</div>
               </div>
 
               <!-- Transaction PIN -->
@@ -191,7 +207,7 @@
       </div>
       <div class="text-end">
         <div class="label">Requested deposit</div>
-        <div class="amount" style="font-size:1.1rem;">₹{{ acc.requested_balance }}</div>
+        <div class="amount" style="font-size:1.1rem;">₹{{ acc.requested_balance|floatformat:2 }}</div>
       </div>
     </div>
     {% endif %}

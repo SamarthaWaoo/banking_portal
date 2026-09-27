@@ -37,6 +37,32 @@ class CustomUser(AbstractUser):
     MAX_LOGIN_ATTEMPTS = 3
     LOGIN_LOCKOUT_MINUTES = 5
 
+    # ── Security question (identity check for Forgot PIN) ─────────────
+    # Answer is hashed the same way the transaction PIN is — never stored
+    # in plain text. Optional: users who haven't set one yet fall back to
+    # password-only verification in the Forgot PIN flow.
+    SECURITY_QUESTIONS = [
+        ('first_pet',      "What was the name of your first pet?"),
+        ('birth_city',     "In which city were you born?"),
+        ('favorite_food',  "What is your favorite food?"),
+        ('favorite_place', "What is your favorite place to visit?"),
+        ('school_name',    "What was the name of your first school?"),
+    ]
+    security_question = models.CharField(max_length=30, choices=SECURITY_QUESTIONS, blank=True, null=True)
+    security_answer_hash = models.CharField(max_length=128, blank=True, null=True)
+
+    def has_security_question(self):
+        return bool(self.security_question and self.security_answer_hash)
+
+    def set_security_answer(self, raw_answer):
+        # normalise so "Mumbai" / "mumbai " / " MUMBAI" all match
+        self.security_answer_hash = make_password(raw_answer.strip().lower())
+
+    def check_security_answer(self, raw_answer):
+        if not self.security_answer_hash:
+            return False
+        return check_password(raw_answer.strip().lower(), self.security_answer_hash)
+
     def is_pin_locked(self):
         return bool(self.pin_locked_until and timezone.now() < self.pin_locked_until)
 

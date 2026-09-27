@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Security Question — SpendSmart Bank{% endblock %}
+{% block content %}
+<div class="vb-auth-wrap">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-9">
+        <div class="vb-auth-card">
+          <div class="row g-0">
+
+            <!-- Dark branding side -->
+            <div class="col-lg-5 vb-auth-side d-none d-lg-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center gap-2 mb-4">
+                  <i class="bi bi-bank2" style="font-size:1.5rem;color:var(--vb-navy-light);"></i>
+                  <span class="fw-bold" style="font-size:1.2rem;">Spend<span style="color:var(--vb-navy-light);">Smart</span></span>
+                </div>
+                <h3 class="fw-bold mb-3">One more safeguard.</h3>
+                <p class="text-white-50 small mb-0">
+                  A security question adds a second identity check on top of
+                  your password — used only if you ever need to reset a
+                  forgotten transaction PIN.
+                </p>
+              </div>
+              <div class="d-flex align-items-center gap-2 text-white-50 small">
+                <i class="bi bi-patch-question"></i> Your answer is hashed, never stored as plain text
+              </div>
+            </div>
+
+            <!-- Form side -->
+            <div class="col-lg-7">
+              <div class="p-4 p-md-5">
+                <h4 class="vb-section-title mb-1"><i class="bi bi-patch-question"></i> Security Question</h4>
+                <p class="text-muted small mb-4">
+                  Used to verify it's really you if you ever forget your transaction PIN.
+                  Confirm your current PIN below to set or update it.
+                </p>
+
+                {% if error %}
+                  <div class="alert vb-alert-error">{{ error }}</div>
+                {% endif %}
+
+                {% if current_question %}
+                  <div class="alert vb-alert-info small">
+                    You already have a security question set. Saving below replaces it.
+                  </div>
+                {% endif %}
+
+                <form method="post">
+                  {% csrf_token %}
+
+                  <div class="mb-3">
+                    <label class="form-label">Current Transaction PIN</label>
+                    <div class="input-group">
+                      <input type="password" name="current_pin" id="sqCurrentPin"
+                             class="form-control" inputmode="numeric" maxlength="4"
+                             placeholder="• • • •" required autocomplete="off">
+                      <button type="button" class="btn btn-outline-secondary eye-toggle"
+                              data-target="sqCurrentPin" tabindex="-1">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                    </div>
+                    <div class="form-text">We ask for this so only you can set or change your security question.</div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">Choose a question</label>
+                    <select name="security_question" class="form-select" required>
+                      <option value="">Select one…</option>
+                      {% for key, label in questions %}
+                        <option value="{{ key }}" {% if key == current_question %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="mb-4">
+                    <label class="form-label">Your answer</label>
+                    <input type="text" name="security_answer" class="form-control" required>
+                    <div class="form-text">Not case-sensitive — spacing and capitalization don't matter.</div>
+                  </div>
+                  <button type="submit" class="btn vb-btn-primary w-100">Save</button>
+                </form>
+
+                <div class="text-center mt-3">
+                  <a href="{% url 'accounts:profile' %}" class="small text-decoration-none">Back to profile</a>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.eye-toggle').forEach(btn => {
+  btn.addEventListener('click', function () {
+    const field = document.getElementById(this.dataset.target);
+    const icon  = this.querySelector('i');
+    const isHidden = field.type === 'password';
+    field.type = isHidden ? 'text' : 'password';
+    icon.classList.toggle('bi-eye',       !isHidden);
+    icon.classList.toggle('bi-eye-slash',  isHidden);
+  });
+});
+document.getElementById('sqCurrentPin').addEventListener('input', function () {
+  this.value = this.value.replace(/\D/g, '').slice(0, 4);
+});
+</script>
+{% endblock %}

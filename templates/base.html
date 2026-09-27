@@ -305,7 +305,56 @@
 
   refreshUnreadDot();
 })();
+
+// ── Security-question nudge (existing accounts that have a PIN but never
+//    set a security question, because that field didn't exist yet when
+//    they registered). Shows once per login session, not on every page. ──
+{% if user.pin_hash and not user.has_security_question %}
+(function () {
+  if (sessionStorage.getItem('sq_prompt_shown')) return;
+  sessionStorage.setItem('sq_prompt_shown', '1');
+
+  var modalEl = document.getElementById('sqNudgeModal');
+  if (modalEl && window.bootstrap) {
+    var modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  }
+})();
+{% endif %}
 </script>
+
+{% if user.pin_hash and not user.has_security_question %}
+<div class="modal fade" id="sqNudgeModal" tabindex="-1" aria-labelledby="sqNudgeLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title fw-semibold" id="sqNudgeLabel">
+          <i class="bi bi-patch-question text-warning"></i> Add a security question
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2">
+          Your account doesn't have a security question set yet — it's what
+          lets you reset your transaction PIN if you ever forget it, without
+          needing to contact support.
+        </p>
+        <p class="text-muted small mb-0">
+          It only takes a moment, and we'll ask you to confirm your current PIN first.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+          Maybe later
+        </button>
+        <a href="{% url 'accounts:set_security_question' %}" class="btn vb-btn-primary btn-sm">
+          <i class="bi bi-shield-check"></i> Set it now
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% else %}
 </main>
 

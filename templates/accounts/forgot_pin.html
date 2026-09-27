@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Reset PIN — SpendSmart Bank{% endblock %}
+{% block content %}
+<div class="vb-auth-wrap">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-9">
+        <div class="vb-auth-card">
+          <div class="row g-0">
+
+            <!-- Dark branding side -->
+            <div class="col-lg-5 vb-auth-side d-none d-lg-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center gap-2 mb-4">
+                  <i class="bi bi-bank2" style="font-size:1.5rem;color:var(--vb-navy-light);"></i>
+                  <span class="fw-bold" style="font-size:1.2rem;">Spend<span style="color:var(--vb-navy-light);">Smart</span></span>
+                </div>
+                <h3 class="fw-bold mb-3">Forgot your PIN?</h3>
+                <p class="text-white-50 small mb-0">
+                  No problem. Confirm your identity below and you'll be able
+                  to set a brand new transaction PIN in a minute.
+                </p>
+              </div>
+              <div class="d-flex align-items-center gap-2 text-white-50 small">
+                <i class="bi bi-shield-check"></i> Verified by your security question
+              </div>
+            </div>
+
+            <!-- Form side -->
+            <div class="col-lg-7">
+              <div class="p-4 p-md-5">
+                <h4 class="vb-section-title mb-1"><i class="bi bi-shield-lock"></i> Reset Transaction PIN</h4>
+                <p class="text-muted small mb-4">
+                  Confirm your identity below to set a new one.
+                </p>
+
+                {% if locked %}
+                  <div class="alert vb-alert-warning">
+                    Too many failed attempts. Try again in {{ remaining }} minute(s).
+                  </div>
+                {% else %}
+                  {% if error %}
+                    <div class="alert vb-alert-error">{{ error }}</div>
+                  {% endif %}
+
+                  <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                      <label class="form-label">{{ security_question }}</label>
+                      <input type="text" name="security_answer" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label">New PIN</label>
+                      <input type="password" inputmode="numeric" name="new_pin"
+                             class="form-control pin-input" maxlength="4" required>
+                    </div>
+                    <div class="mb-4">
+                      <label class="form-label">Confirm New PIN</label>
+                      <input type="password" inputmode="numeric" name="confirm_pin"
+                             class="form-control pin-input" maxlength="4" required>
+                    </div>
+
+                    <!-- FIX: carries the return destination (e.g. Send Money)
+                         through the POST. Without this hidden field, the
+                         `next` value from ?next=... in the URL is lost the
+                         instant the form submits, and the view falls back
+                         to redirecting to the profile page every time. -->
+                    <input type="hidden" name="next" value="{{ next }}">
+
+                    <button type="submit" class="btn vb-btn-primary w-100">Reset PIN</button>
+                  </form>
+                {% endif %}
+
+                <div class="text-center mt-3">
+                  {% if next %}
+                    <a href="{{ next }}" class="small text-decoration-none">Cancel and go back</a>
+                  {% else %}
+                    <a href="{% url 'accounts:profile' %}" class="small text-decoration-none">Back to profile</a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Digits-only on the PIN fields, consistent with set_pin.html
+document.querySelectorAll('.pin-input').forEach(function (inp) {
+  inp.addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '').slice(0, 4);
+  });
+});
+</script>
+{% endblock %}

@@ -1,11 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Budgets — SpendSmart Bank{% endblock %}
-{% block page_title %}<span style="display:block;font-size:0.68rem;font-weight:600;color:var(--vb-navy);text-transform:uppercase;letter-spacing:0.4px;">Budgets</span>Budgets & Spending Goals{% endblock %}
+
+{% block page_title %}
+<span style="display:block;font-size:1.4rem;font-weight:700;color:var(--vb-ink);">
+  Budgets & Spending Goals
+</span>
+{% endblock %}
+
 {% block page_subtitle %}
-<span class="vb-app-topbar-subtitle">
+<span class="vb-app-topbar-subtitle" style="font-size:0.85rem;font-weight:500;color:var(--vb-navy);">
   Set a monthly limit per category and track it against your real transactions.
 </span>
 {% endblock %}
+
 {% block page_actions %}
 <a href="{% url 'upi:dashboard' %}" class="btn vb-btn-outline btn-sm">
   <i class="bi bi-arrow-left"></i> Back to Dashboard

@@ -43,15 +43,43 @@
         </div>
       </div>
 
+      <!-- Live PIN match indicator -->
+      <div id="pinMatch" class="small mb-4 d-none"></div>
+
+      <!-- Security question — captured here so it's ready for Forgot PIN later -->
+      <hr class="my-4">
+      <div class="mb-1">
+        <i class="bi bi-patch-question" style="color:var(--vb-navy);"></i>
+        <span class="fw-semibold small">Security Question</span>
+      </div>
+      <p class="text-muted small mb-3">
+        Used to verify it's you if you ever forget this PIN.
+      </p>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Choose a question</label>
+        <select name="security_question" class="form-select" required>
+          <option value="">Select one…</option>
+          {% for key, label in security_questions %}
+            <option value="{{ key }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Your answer</label>
+        <input type="text" name="security_answer" class="form-control" required>
+        <div class="form-text">Not case-sensitive — spacing and capitalization don't matter.</div>
+      </div>
+
       {% if form.errors %}
       <div class="alert vb-alert-error">
         {% for error in form.non_field_errors %}{{ error }}{% endfor %}
         {% for field in form %}{% for e in field.errors %}{{ e }}{% endfor %}{% endfor %}
       </div>
       {% endif %}
-
-      <!-- Live PIN match indicator -->
-      <div id="pinMatch" class="small mb-3 d-none"></div>
+      {% if error %}
+      <div class="alert vb-alert-error">{{ error }}</div>
+      {% endif %}
 
       <button type="submit" class="btn vb-btn-primary w-100 py-2 mt-1" id="setPinBtn">
         Set PIN

@@ -104,9 +104,22 @@ def dashboard_view(request):
     recent_txns = Transaction.objects.filter(
         Q(sender_account__user=request.user) | Q(receiver_account__user=request.user)
     ).select_related('sender_account__user', 'receiver_account__user')[:5]
+
+    # Existing accounts created before the security-question feature was
+    # added won't have one set. Surface a dismissible prompt on the
+    # dashboard rather than force-redirecting — a missing security
+    # question only affects Forgot PIN, it doesn't block banking.
+    needs_security_question = not request.user.has_security_question()
+
     approved_accounts = accounts.filter(is_approved=True, is_active=True)
     pending_accounts  = accounts.filter(is_approved=False)
-    total_balance = sum(acc.balance for acc in approved_accounts) if approved_accounts else Decimal('0.00')
+    # FIX: a queryset is always truthy even when empty, so the old
+    # `if approved_accounts` check never triggered the Decimal('0.00')
+    # fallback. aggregate() returns None when no rows match — guard with `or`.
+    total_balance = (
+        approved_accounts.aggregate(total=Sum('balance'))['total']
+        or Decimal('0.00')
+    )
 
     newly_approved = None
     if request.session.pop('account_just_approved', False):
@@ -187,6 +200,7 @@ def dashboard_view(request):
         'current_month_received': current_month_received,
         'budget_snapshot':  budget_snapshot,
         'has_budgets':      bool(budgets),
+        'needs_security_question': needs_security_question,
     })
 
 
@@ -208,6 +222,10 @@ def fetch_notifications(request):
             'title':      n.title,
             'body':       n.body,
             'icon':       n.icon,
+            # The Notification model uses 'preset' not 'notif_type'.
+            # base.html JS reads notif_type to decide the green
+            # "important" highlight in the bell dropdown.
+            'notif_type': getattr(n, 'preset', None) or n.icon or '',
             'is_read':    n.is_read,
             'created_at': n.created_at.strftime('%d %b %Y, %H:%M'),
         }
@@ -225,6 +243,18 @@ def notifications_unread_count(request):
     from django.http import JsonResponse
     unread = Notification.objects.filter(recipient=request.user, is_read=False).count()
     return JsonResponse({'unread_count': unread})
+
+
+@login_required
+def mark_all_notifications_read(request):
+    """POST — marks every unread notification as read (the dropdown's
+    'Mark all as read' button calls this)."""
+    from admin_dashboard.models import Notification
+    from django.http import JsonResponse
+    if request.method == 'POST':
+        Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+        return JsonResponse({'ok': True})
+    return JsonResponse({'ok': False}, status=405)
 
 
 # ─────────────────────────────────────────────
